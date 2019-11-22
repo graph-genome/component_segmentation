@@ -1,8 +1,12 @@
 
 # Python object models to be manipulated
+from typing import List, Any
 
 
 class Path:
+    links: 'List[Path.LinkEntry]'
+    bins: 'List[Path.Bin]'
+
     def __init__(self):
         self.bins = []  # Bin
         self.links = []  # LinkEntry
@@ -17,9 +21,9 @@ class Path:
             self.sequence = ''
 
     class LinkEntry:
-        def __init__(self, left, right):
-            self.left = left
-            self.right = right
+        def __init__(self, upstream, downstream):
+            self.upstream = upstream
+            self.downstream = downstream
 
     def __contains__(self, item):  # used by " x in Path "
         if not self.__bin_set:
