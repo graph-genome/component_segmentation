@@ -1,2 +1,64 @@
+#!/usr/bin/env python3
+
+import os
+import logging
+import argparse
+
+import JSONparser
+
+LOGGER = logging.getLogger(__name__)
+"""logging.Logger: The logger for this module"""
+
+
+def setup_logging(output_dir):
+    """Setup the logging, add a log file"""
+    log_name = os.path.join(output_dir, 'log')
+    handler = logging.FileHandler(log_name)
+    handler.setLevel(args.log_level)
+    handler.setFormatter(logging.Formatter(NWP.LOGGING_FORMAT_STR,
+                                           datefmt=NWP.LOGGING_DATE_FORMAT))
+    logging.getLogger().addHandler(handler)
+
+
+# Helper class to allow multi-line help messages for argparse user parameters:
+class SmartFormatter(argparse.HelpFormatter):
+    def _split_lines(self, text, width):
+        if text.startswith('R|'):
+            return text[2:].splitlines()
+        # this is the RawTextHelpFormatter._split_lines
+        return argparse.HelpFormatter._split_lines(self, text, width)
+
+
+def get_arguments():
+    """Create the command line interface and return the command line arguments
+
+    Returns
+    -------
+    Namespace
+        The command line arguments
+
+    """
+    parser = argparse.ArgumentParser(
+        formatter_class=argparse.RawTextHelpFormatter,
+        description="")
+
+    parser.add_argument('-j', '--json-file',
+                            dest='json_file',
+                            required=True,
+                            help='input JSON file')
+
+    parser.add_argument('-o', '--out-folder',
+                        dest='output_folder',
+                        required=True,
+                        help='output folder')
+
+if __name__ == '__main__':
+
+    args = get_arguments()
+
+    setup_logging(args.output_folder)
+
+    LOGGER.info("starting...")
+    #graph = JSONparser.parse(args.json_file)
 
 
