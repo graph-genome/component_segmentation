@@ -70,7 +70,8 @@ if __name__ == '__main__':
     setup_logging(args.output_folder)
 
     LOGGER.info("starting...\n")
-    JSONparser.parse(args.json_file)
+
+    Paths = JSONparser.parse(args.json_file)
 
 
 #Tasks

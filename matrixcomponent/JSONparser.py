@@ -17,6 +17,7 @@ def parse(file):
             for line in f:
                 data.append(json.loads(line))
 
+        paths = []
         for path in data:
             LOGGER.info("reading " + path['path_name'])
 
@@ -28,9 +29,7 @@ def parse(file):
             for l in path['links']:
                 p.links.append(p.LinkEntry(l[0], l[1]))
 
+            paths.append(p)
 
-
-
-
-
+        return(paths)
 
