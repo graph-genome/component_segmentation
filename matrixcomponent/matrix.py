@@ -1,7 +1,10 @@
+"""Python object models to be manipulated"""
 
-# Python object models to be manipulated
-from typing import List, Any
+from dataclasses import dataclass
+from typing import List, Any, Set
 
+
+## Path is all for input files
 
 class Path:
     links: 'List[Path.LinkEntry]'
@@ -24,6 +27,7 @@ class Path:
         def __init__(self, upstream, downstream):
             self.upstream = upstream
             self.downstream = downstream
+            # TODO: self.insert_size will require a topology search to find this
 
     def __contains__(self, item):  # used by " x in Path "
         if not self.__bin_set:
@@ -31,17 +35,32 @@ class Path:
         return item in self.__bin_set
 
 
+## For Output to RDF
+@dataclass
+class Link:
+    upstream: int
+    downstream: int
+    participants: Set[str]
+
+
 class Component:
     """Block of co-linear variation within a Graph Matrix"""
-    def __init__(self):
-        self.matrix = [[]]  # square grid of Bin
+    def __init__(self, first_bin: int, last_bin: int):
+        self.first_bin = first_bin
+        self.last_bin = last_bin
         # bin_id and seq are global to column and could be reduced to save memory,
         # careful construction can reuse Bin.sequence memory pointer
-        self.upstream = []  # Links
-        self.downstream = []  # Links
+        self.upstream = []  # reverse ordered Links
+        self.downstream = []  # ordered Links
 
     def split(self, abs_index):
         """Splits one Component into two
         :param abs_index the first position of the new component"""
         pass
+
+
+@dataclass
+class PangenomeSchematic:
+    components: List[Component]
+
 
