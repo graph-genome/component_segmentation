@@ -3,8 +3,9 @@
 import os
 import logging
 import argparse
+import matrixcomponent
 
-import JSONparser
+import matrixcomponent.JSONparser as JSONparser
 
 LOGGER = logging.getLogger(__name__)
 """logging.Logger: The logger for this module"""
@@ -15,8 +16,8 @@ def setup_logging(output_dir):
     log_name = os.path.join(output_dir, 'log')
     handler = logging.FileHandler(log_name)
     handler.setLevel(args.log_level)
-    handler.setFormatter(logging.Formatter(NWP.LOGGING_FORMAT_STR,
-                                           datefmt=NWP.LOGGING_DATE_FORMAT))
+    handler.setFormatter(logging.Formatter(matrixcomponent.LOGGING_FORMAT_STR,
+                                           datefmt=matrixcomponent.LOGGING_DATE_FORMAT))
     logging.getLogger().addHandler(handler)
 
 
@@ -52,14 +53,24 @@ def get_arguments():
                         required=True,
                         help='output folder')
 
+    parser.add_argument('-l', '--log-level',
+                        default='DEBUG',
+                        choices=('DEBUG', 'INFO', 'WARNING', 'ERROR'),
+                        help='level of logging verbosity. DEBUG is most verbose')
+
+    args = parser.parse_args()
+
+    return args
+
+
 if __name__ == '__main__':
 
     args = get_arguments()
 
     setup_logging(args.output_folder)
 
-    LOGGER.info("starting...")
-    #graph = JSONparser.parse(args.json_file)
+    LOGGER.info("starting...\n")
+    JSONparser.parse(args.json_file)
 
 
 #Tasks
