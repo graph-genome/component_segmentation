@@ -1,5 +1,5 @@
 """Python object models to be manipulated"""
-
+import json
 from dataclasses import dataclass
 from typing import List, Any, Set
 
@@ -49,6 +49,8 @@ class LinkColumn:
 
 class Component:
     """Block of co-linear variation within a Graph Matrix"""
+    first_bin: int
+    last_bin: int
     arrivals: List[LinkColumn]
     departures: List[LinkColumn]
 
@@ -60,14 +62,19 @@ class Component:
         self.arrivals = []  # reverse ordered Links
         self.departures = []  # ordered Links
 
-    def split(self, abs_index):
-        """Splits one Component into two
-        :param abs_index the first position of the new component"""
-        pass
-
 
 @dataclass
 class PangenomeSchematic:
     components: List[Component]
 
+    def json_dump(self):
+        def dumper(obj):
+            if isinstance(obj, set):
+                return list(obj)
+            try:
+                return obj.__dict__
+            except:
+                return obj
+
+        return json.dumps(self.components, default=dumper, indent=4)
 

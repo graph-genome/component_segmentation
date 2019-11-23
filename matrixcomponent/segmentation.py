@@ -7,7 +7,6 @@ Component Segmentation Detection - Josiah and Joerg
   Python memory object model - Josiah
 Output format
 """
-from collections import defaultdict
 from typing import List, Tuple, Set, Dict
 
 from nested_dict import nested_dict
@@ -74,8 +73,8 @@ def find_dividers(matrix: List[Path]) -> Tuple[Dict[int, Dict[int, set]],
             if divider_verified:
                 # if (upstream + 1) in leaving.keys() :
                 #     print(f"Found inherited rearrangement {upstream+1}")
-                leaving[upstream][downstream].add(path)  # the first position of the new component
-                entering[downstream][upstream].add(path)
+                leaving[upstream][downstream].add(path.name)  # the first position of the new component
+                entering[downstream][upstream].add(path.name)
                 dividers.add(upstream + 1)
                 dividers.add(downstream)
                 # TODO: insert prevarications about exact position
@@ -156,7 +155,8 @@ def main():
     LOGGER.info("starting...\n")
     Paths = JSONparser.parse(args.json_file)
     schematic = segment_matrix(Paths)
-
+    with open(f'{args.json_file}.json', 'w') as fpgh9:
+        fpgh9.write(schematic.json_dump())
 
 if __name__ == '__main__':
 
