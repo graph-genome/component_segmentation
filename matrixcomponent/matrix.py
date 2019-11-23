@@ -7,21 +7,23 @@ from typing import List, Any, Set
 ## Path is all for input files
 
 class Path:
+    name: str
     links: 'List[Path.LinkEntry]'
     bins: 'List[Path.Bin]'
 
-    def __init__(self):
+    def __init__(self, name=''):
+        self.name = name
         self.bins = []  # Bin
         self.links = []  # LinkEntry
         self.__bin_set = set()
 
     class Bin:
-        def __init__(self, bin_id, coverage, inversion_rate, mean_pos):
+        def __init__(self, bin_id, coverage, inversion_rate, mean_pos, sequence=''):
             self.bin_id = bin_id
             self.coverage = coverage
             self.inversion_rate = inversion_rate
             self.mean_pos = mean_pos
-            self.sequence = ''
+            self.sequence = sequence
 
     class LinkEntry:
         def __init__(self, upstream, downstream):
