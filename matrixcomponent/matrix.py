@@ -30,14 +30,16 @@ class Path:
             # TODO: self.insert_size will require a topology search to find this
 
     def __contains__(self, item):  # used by " x in Path "
-        if not self.__bin_set:
-            self.__bin_set = {x.bin_id for x in self.bins}  # build and cache a set
         return item in self.__bin_set
+
+    def finalize_bins(self):
+        self.__bin_set = {x.bin_id for x in self.bins}  # build and cache a set
+
 
 
 ## For Output to RDF
 @dataclass
-class Link:
+class LinkColumn:
     upstream: int
     downstream: int
     participants: Set[str]
@@ -45,13 +47,16 @@ class Link:
 
 class Component:
     """Block of co-linear variation within a Graph Matrix"""
+    arrivals: List[LinkColumn]
+    departures: List[LinkColumn]
+
     def __init__(self, first_bin: int, last_bin: int):
         self.first_bin = first_bin
         self.last_bin = last_bin
         # bin_id and seq are global to column and could be reduced to save memory,
         # careful construction can reuse Bin.sequence memory pointer
-        self.upstream = []  # reverse ordered Links
-        self.downstream = []  # ordered Links
+        self.arrivals = []  # reverse ordered Links
+        self.departures = []  # ordered Links
 
     def split(self, abs_index):
         """Splits one Component into two
