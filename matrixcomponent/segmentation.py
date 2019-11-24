@@ -8,7 +8,7 @@ Component Segmentation Detection - Josiah and Joerg
 Output format
 """
 from typing import List, Tuple, Set, Dict
-
+from pathlib import Path as osPath
 from nested_dict import nested_dict
 
 from matrixcomponent.matrix import Path, PangenomeSchematic, Component, LinkColumn
@@ -32,8 +32,10 @@ def segment_matrix(matrix: List[Path]) -> PangenomeSchematic:
         if valid_start != 0:
             schematic.components.append(Component(start_pos, valid_start - 1))
         start_pos = valid_start
+    print(f"Created {len(schematic.components)} components")
 
-    # TODO: populate all link columns onto schematic
+    # populate all link columns onto schematic
+    nLinkColumns = 0
     for component in schematic.components:
         # TODO: order columns based on traversal patterns,
         # TODO: insert additional columns for higher copy number
@@ -42,11 +44,14 @@ def segment_matrix(matrix: List[Path]) -> PangenomeSchematic:
                                  arriving_pos,
                                  participants=participants)
             component.departures.append(leaving)
+            nLinkColumns += 1
         for origin_pos, participants in incoming[component.first_bin].items():
             entering = LinkColumn(origin_pos,
                                   component.first_bin,
                                   participants=participants)
             component.arrivals.append(entering)
+            nLinkColumns += 1
+    print(f"Created {nLinkColumns} LinkColumns")
 
     return schematic
 
@@ -155,8 +160,10 @@ def main():
     LOGGER.info("starting...\n")
     Paths = JSONparser.parse(args.json_file)
     schematic = segment_matrix(Paths)
-    with open(f'{args.json_file}.json', 'w') as fpgh9:
+    p = osPath(args.json_file).with_suffix('.schematic.json')
+    with p.open('w') as fpgh9:
         fpgh9.write(schematic.json_dump())
+    print("Saved results to", p)
 
 if __name__ == '__main__':
 
