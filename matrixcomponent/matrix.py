@@ -51,6 +51,7 @@ class Component:
     """Block of co-linear variation within a Graph Matrix"""
     first_bin: int
     last_bin: int
+    # active_members: int
     arrivals: List[LinkColumn]
     departures: List[LinkColumn]
 
@@ -66,6 +67,8 @@ class Component:
 @dataclass
 class PangenomeSchematic:
     components: List[Component]
+    path_names: List[str]
+    break_points: List[dict]
 
     def json_dump(self):
         def dumper(obj):
@@ -76,5 +79,5 @@ class PangenomeSchematic:
             except:
                 return obj
 
-        return json.dumps(self.components, default=dumper, indent=4)
+        return json.dumps(self, default=dumper, indent=4)
 
