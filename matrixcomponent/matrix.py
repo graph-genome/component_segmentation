@@ -15,7 +15,7 @@ class Path:
         self.name = name
         self.bins = []  # Bin
         self.links = []  # LinkEntry
-        self.__bin_set = set()
+        self._bin_set = set()
 
     class Bin:
         def __init__(self, bin_id, coverage, inversion_rate, mean_pos, sequence=''):
@@ -32,19 +32,19 @@ class Path:
             # TODO: self.insert_size will require a topology search to find this
 
     def __contains__(self, item):  # used by " x in Path "
-        return item in self.__bin_set
+        return item in self._bin_set
 
     def finalize_bins(self):
-        self.__bin_set = {x.bin_id for x in self.bins}  # build and cache a set
+        self._bin_set = {x.bin_id for x in self.bins}  # build and cache a set
 
 
 
-## For Output to RDF
+## For Output to RDF  ###########
 @dataclass
 class LinkColumn:
     upstream: int
     downstream: int
-    participants: Set[str]
+    participants: Set[str]  # path names
 
 
 class Component:
