@@ -42,15 +42,18 @@ def segment_matrix(matrix: List[Path]) -> PangenomeSchematic:
         # TODO: order columns based on traversal patterns,
         # TODO: insert additional columns for higher copy number
         for arriving_pos, participants in outgoing[component.last_bin].items():
+            # phase_dots depends on row ordering of path names, optimized for display
+            phase_dots = [indiv in participants for indiv in schematic.path_names]
             leaving = LinkColumn(component.last_bin,
                                  arriving_pos,
-                                 participants=participants)
+                                 participants=phase_dots)
             component.departures.append(leaving)
             nLinkColumns += 1
         for origin_pos, participants in incoming[component.first_bin].items():
+            phase_dots = [indiv in participants for indiv in schematic.path_names]
             entering = LinkColumn(origin_pos,
                                   component.first_bin,
-                                  participants=participants)
+                                  participants=phase_dots)
             component.arrivals.append(entering)
             nLinkColumns += 1
     print(f"Created {nLinkColumns} LinkColumns")

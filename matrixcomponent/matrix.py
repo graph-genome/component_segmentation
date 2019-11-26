@@ -44,7 +44,8 @@ class Path:
 class LinkColumn:
     upstream: int
     downstream: int
-    participants: Set[str]  # path names
+    participants: List[bool]  # in order path_names, true if the individual participates in this LinkColumn
+    # participants depends on row ordering of path names, optimized precompute for display
 
 
 class Component:
