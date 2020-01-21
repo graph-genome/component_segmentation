@@ -25,7 +25,8 @@ LOGGER = logging.getLogger(__name__)
 
 def segment_matrix(matrix: List[Path]) -> PangenomeSchematic:
     print(f"Starting Segmentation process on {len(matrix)} Paths.")
-    schematic = PangenomeSchematic([], [p.name for p in matrix], [])
+    schematic = PangenomeSchematic(100000, 1, 140*1000000, # TODO: parse bin_size from filename
+                                   [], [p.name for p in matrix], [])
     incoming, outgoing, dividers = find_dividers(matrix)
     start_pos = 0
     for valid_start in sorted(list(dividers)):
@@ -67,6 +68,8 @@ def find_dividers(matrix: List[Path]) -> Tuple[Dict[int, Dict[int, set]],
     leaving = nested_dict(2, set)  # containing the set of participating Paths on that link column
     entering = nested_dict(2, set)  # list of indices of new components
     dividers = {1}  # all start positions of components, start with st
+    copy_arrivals = set()  # track self loops just in case component gets cut in half
+    uniq_links = set()
     for i, path in enumerate(matrix):
         print(f"Segmenting {len(path.bins)}", '{0:.1%}'.format(i / len(matrix)))
         max_bin = max(max_bin, max(path._bin_set))
@@ -80,6 +83,7 @@ def find_dividers(matrix: List[Path]) -> Tuple[Dict[int, Dict[int, set]],
                 for i in missing_range:
                     if i in path:
                         divider_verified = True
+                        uniq_links.add((upstream, downstream))
                         break  # stop as soon as we have confirmation
             if divider_verified:
                 # if (upstream + 1) in leaving.keys() :
@@ -94,6 +98,7 @@ def find_dividers(matrix: List[Path]) -> Tuple[Dict[int, Dict[int, set]],
                 # Stack up others using the same LinkColumn
     print(f"Largest bin_id was {max_bin}")
     dividers.add(max_bin + 1)  # end of pangenome
+    print(uniq_links)
     return entering, leaving, dividers
 
 

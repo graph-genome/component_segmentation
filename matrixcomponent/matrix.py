@@ -67,6 +67,9 @@ class Component:
 
 @dataclass
 class PangenomeSchematic:
+    bin_size: int
+    first_nucleotide: int
+    last_nucleotide: int
     components: List[Component]
     path_names: List[str]
     break_points: List[dict]
