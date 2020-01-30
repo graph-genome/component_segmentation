@@ -23,6 +23,18 @@ LOGGER = logging.getLogger(__name__)
 """logging.Logger: The logger for this module"""
 
 
+def populate_component_occupancy(matrix: List[Path], schematic: PangenomeSchematic):
+    for component in schematic.components:
+        occupants = [False] * len(schematic.path_names)
+        # are matrix paths in the same order as schematic.path_names?
+        for i, path in enumerate(matrix):
+            relevant = path.bins[component.first_bin: component.last_bin + 1]
+            # TODO: When we move to breakpoints, this will be occupants[component.region.pathnames.index(path.name)]
+            occupants[i] = any([bin.coverage > 0.5 for bin in relevant])
+        component.occupants = occupants  # side effect instead of return
+    print("Populated Occupancy per component per path.")
+
+
 def segment_matrix(matrix: List[Path]) -> PangenomeSchematic:
     print(f"Starting Segmentation process on {len(matrix)} Paths.")
     schematic = PangenomeSchematic(100000, 1, 140*1000000, # FIXME: parse bin_size from filename
@@ -36,6 +48,9 @@ def segment_matrix(matrix: List[Path]) -> PangenomeSchematic:
             schematic.components.append(current)
         start_pos = valid_start
     print(f"Created {len(schematic.components)} components")
+
+    #populate Component occupancy per Path
+    populate_component_occupancy(matrix, schematic)
 
     # populate all link columns onto schematic
     nLinkColumns = 0

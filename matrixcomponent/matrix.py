@@ -59,6 +59,7 @@ class Component:
     def __init__(self, first_bin: int, last_bin: int):
         self.first_bin = first_bin
         self.last_bin = last_bin
+        self.occupants = []
         # bin_id and seq are global to column and could be reduced to save memory,
         # careful construction can reuse Bin.sequence memory pointer
         self.arrivals = []  # reverse ordered Links
