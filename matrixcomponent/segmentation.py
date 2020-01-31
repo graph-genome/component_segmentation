@@ -31,7 +31,7 @@ def populate_component_occupancy(matrix: List[Path], schematic: PangenomeSchemat
             relevant = [bin for bin in path.bins if bin.bin_id >= component.first_bin and bin.bin_id <= component.last_bin]  # very costly loop
             # TODO: When we move to breakpoints, this will be
             # TODO: occupants[component.region.pathnames.index(path.name)]
-            occupants[i] = any([bin.coverage > 0.001 for bin in relevant])
+            occupants[i] = any([bin.coverage > 0.1 for bin in relevant])
         component.occupants = occupants  # side effect instead of return
     print("Populated Occupancy per component per path.")
 
