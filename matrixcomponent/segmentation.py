@@ -28,9 +28,10 @@ def populate_component_occupancy(matrix: List[Path], schematic: PangenomeSchemat
         occupants = [False] * len(schematic.path_names)
         # are matrix paths in the same order as schematic.path_names?
         for i, path in enumerate(matrix):
-            relevant = path.bins[component.first_bin: component.last_bin + 1]
-            # TODO: When we move to breakpoints, this will be occupants[component.region.pathnames.index(path.name)]
-            occupants[i] = any([bin.coverage > 0.5 for bin in relevant])
+            relevant = [bin for bin in path.bins if bin.bin_id >= component.first_bin and bin.bin_id <= component.last_bin]  # very costly loop
+            # TODO: When we move to breakpoints, this will be
+            # TODO: occupants[component.region.pathnames.index(path.name)]
+            occupants[i] = any([bin.coverage > 0.001 for bin in relevant])
         component.occupants = occupants  # side effect instead of return
     print("Populated Occupancy per component per path.")
 
@@ -93,8 +94,9 @@ def find_dividers(matrix: List[Path]) -> Tuple[Dict[int, Dict[int, set]],
             if not args.include_zero:
                 if 0 in [upstream, downstream]:
                     # print("WARNING: Links to 0 Bin were excluded.  To change this use '--include_zero'")
+                    # Links to 0 Bin indicate the beginning or end of a path.  0 Bin has no sequence
                     continue  # ignore links to the telomere.
-            if upstream == downstream + 1:
+            if upstream == downstream:
                 copy_arrivals.add(upstream)
                 continue  # we don't want these to become dividers
             # Is the gap range anywhere else in this individual?
