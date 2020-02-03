@@ -1,3 +1,5 @@
+JSON_VERSION = 4  # This version added adjacent connectors in departures column
+
 import logging
 
 LOGGER = logging.getLogger(__name__)

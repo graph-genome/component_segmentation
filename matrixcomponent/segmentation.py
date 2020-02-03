@@ -37,8 +37,13 @@ def populate_component_occupancy(matrix: List[Path], schematic: PangenomeSchemat
 
 
 def segment_matrix(matrix: List[Path]) -> PangenomeSchematic:
+    from matrixcomponent import JSON_VERSION
     print(f"Starting Segmentation process on {len(matrix)} Paths.")
-    schematic = PangenomeSchematic(100000, 1, 140*1000000, # FIXME: parse bin_size from filename
+    bin_size = 100000  # FIXME: parse bin_size from filename
+    schematic = PangenomeSchematic(JSON_VERSION,
+                                   bin_size,
+                                   1,
+                                   1400 * bin_size,
                                    [], [p.name for p in matrix], [])
     incoming, outgoing, dividers = find_dividers(matrix)
     start_pos = 0

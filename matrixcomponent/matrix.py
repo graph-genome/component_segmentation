@@ -68,6 +68,7 @@ class Component:
 
 @dataclass
 class PangenomeSchematic:
+    json_version: int
     bin_size: int
     first_nucleotide: int
     last_nucleotide: int
