@@ -17,13 +17,13 @@ class Path:
         self.links = []  # LinkEntry
         self._bin_set = set()
 
+    @dataclass
     class Bin:
-        def __init__(self, bin_id, coverage, inversion_rate, mean_pos, sequence=''):
-            self.bin_id = bin_id
-            self.coverage = coverage
-            self.inversion_rate = inversion_rate
-            self.mean_pos = mean_pos
-            self.sequence = sequence
+        bin_id: int
+        coverage: float
+        inversion_rate: float
+        mean_pos: float
+        sequence: str = ''
 
     class LinkEntry:
         def __init__(self, upstream, downstream):
@@ -55,7 +55,9 @@ class Bin:
 
 
 class Component:
-    """Block of co-linear variation within a Graph Matrix"""
+    """Block of co-linear variation within a Graph Matrix
+        # bin_id and seq are global to column and could be reduced to save memory,
+        # careful construction can reuse Bin.sequence memory pointer"""
     first_bin: int
     last_bin: int
     occupants: List[bool]
@@ -68,8 +70,6 @@ class Component:
         self.last_bin = last_bin
         self.occupants = []
         self.matrix = []
-        # bin_id and seq are global to column and could be reduced to save memory,
-        # careful construction can reuse Bin.sequence memory pointer
         self.arrivals = []  # reverse ordered Links
         self.departures = []  # ordered Links
 
