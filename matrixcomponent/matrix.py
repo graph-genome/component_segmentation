@@ -48,11 +48,18 @@ class LinkColumn:
     # participants depends on row ordering of path names, optimized precompute for display
 
 
+@dataclass
+class Bin:
+    coverage: float
+    inversion: float
+
+
 class Component:
     """Block of co-linear variation within a Graph Matrix"""
     first_bin: int
     last_bin: int
-    # active_members: int
+    occupants: List[bool]
+    matrix: List[List[Bin]]
     arrivals: List[LinkColumn]
     departures: List[LinkColumn]
 
@@ -60,6 +67,7 @@ class Component:
         self.first_bin = first_bin
         self.last_bin = last_bin
         self.occupants = []
+        self.matrix = []
         # bin_id and seq are global to column and could be reduced to save memory,
         # careful construction can reuse Bin.sequence memory pointer
         self.arrivals = []  # reverse ordered Links
@@ -78,6 +86,8 @@ class PangenomeSchematic:
 
     def json_dump(self):
         def dumper(obj):
+            if isinstance(obj, Bin):  # should be in Bin class def
+                return [obj.coverage, obj.inversion]
             if isinstance(obj, set):
                 return list(obj)
             try:

@@ -11,7 +11,7 @@ from typing import List, Tuple, Set, Dict
 from pathlib import Path as osPath
 from nested_dict import nested_dict
 
-from matrixcomponent.matrix import Path, PangenomeSchematic, Component, LinkColumn
+from matrixcomponent.matrix import Path, PangenomeSchematic, Component, LinkColumn, Bin
 import os
 import logging
 import argparse
@@ -23,17 +23,24 @@ LOGGER = logging.getLogger(__name__)
 """logging.Logger: The logger for this module"""
 
 
-def populate_component_occupancy(matrix: List[Path], schematic: PangenomeSchematic):
+def populate_component_occupancy(schematic: PangenomeSchematic):
     for component in schematic.components:
-        occupants = [False] * len(schematic.path_names)
         # are matrix paths in the same order as schematic.path_names?
-        for i, path in enumerate(matrix):
-            relevant = [bin for bin in path.bins if bin.bin_id >= component.first_bin and bin.bin_id <= component.last_bin]  # very costly loop
-            # TODO: When we move to breakpoints, this will be
-            # TODO: occupants[component.region.pathnames.index(path.name)]
-            occupants[i] = any([bin.coverage > 0.1 for bin in relevant])
-        component.occupants = occupants  # side effect instead of return
+        # side effect instead of return
+        component.occupants = [any([bin.coverage > 0.1 for bin in bins])
+                               for bins in component.matrix]
     print("Populated Occupancy per component per path.")
+
+
+def populate_component_matrix(paths: List[Path], schematic: PangenomeSchematic):
+    for component in schematic.components:
+        # paths paths are in the same order as schematic.path_names
+        for i, path in enumerate(paths):
+            relevant = [bin for bin in path.bins if
+                bin.bin_id >= component.first_bin and bin.bin_id <= component.last_bin]  # very costly loop
+            component.matrix.append([Bin(bin.coverage, bin.inversion_rate) for bin in relevant])
+    print("Populated Matrix per component per path.")
+    populate_component_occupancy(schematic)
 
 
 def segment_matrix(matrix: List[Path]) -> PangenomeSchematic:
@@ -55,8 +62,8 @@ def segment_matrix(matrix: List[Path]) -> PangenomeSchematic:
         start_pos = valid_start
     print(f"Created {len(schematic.components)} components")
 
-    #populate Component occupancy per Path
-    populate_component_occupancy(matrix, schematic)
+    # populate Component occupancy per Path
+    populate_component_matrix(matrix, schematic)
 
     # populate all link columns onto schematic
     nLinkColumns = 0
