@@ -52,6 +52,7 @@ class LinkColumn:
 class Bin:
     coverage: float
     inversion: float
+    mean_pos: float
 
 
 class Component:
@@ -87,7 +88,7 @@ class PangenomeSchematic:
     def json_dump(self):
         def dumper(obj):
             if isinstance(obj, Bin):  # should be in Bin class def
-                return [obj.coverage, obj.inversion]
+                return [obj.coverage, obj.inversion, obj.mean_pos]
             if isinstance(obj, set):
                 return list(obj)
             try:

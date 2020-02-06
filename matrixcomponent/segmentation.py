@@ -42,7 +42,8 @@ def populate_component_matrix(paths: List[Path], schematic: PangenomeSchematic):
             if relevant:
                 padded = [[]] * (component.last_bin - component.first_bin + 1)
                 for bin in relevant:
-                    padded[bin.bin_id - component.first_bin] = Bin(bin.coverage, bin.inversion_rate)
+                    padded[bin.bin_id - component.first_bin] =  \
+                        Bin(bin.coverage, bin.inversion_rate, bin.mean_pos)
             component.matrix.append(padded)  # ensure there's always 1 entry for each path
     print("Populated Matrix per component per path.")
     populate_component_occupancy(schematic)
