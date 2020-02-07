@@ -22,7 +22,7 @@ class Path:
         bin_id: int
         coverage: float
         inversion_rate: float
-        mean_pos: float
+        center_nucleotide: int
         sequence: str = ''
 
     class LinkEntry:
@@ -52,7 +52,7 @@ class LinkColumn:
 class Bin:
     coverage: float
     inversion: float
-    mean_pos: float
+    center_nucleotide: int
 
 
 class Component:
@@ -88,7 +88,7 @@ class PangenomeSchematic:
     def json_dump(self):
         def dumper(obj):
             if isinstance(obj, Bin):  # should be in Bin class def
-                return [obj.coverage, obj.inversion, obj.mean_pos]
+                return [obj.coverage, obj.inversion, obj.center_nucleotide]
             if isinstance(obj, set):
                 return list(obj)
             try:
