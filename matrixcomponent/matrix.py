@@ -1,10 +1,16 @@
 """Python object models to be manipulated"""
 import json
+from bisect import bisect
+
 from dataclasses import dataclass
 from typing import List, Any, Set
 
 
 ## Path is all for input files
+from math import ceil
+
+from matrixcomponent import JSON_VERSION
+
 
 class Path:
     name: str
@@ -81,8 +87,8 @@ class Component:
 class PangenomeSchematic:
     json_version: int
     bin_size: int
-    first_nucleotide: int
-    last_nucleotide: int
+    first_bin: int
+    last_bin: int
     components: List[Component]
     path_names: List[str]
     break_points: List[dict]
@@ -98,5 +104,35 @@ class PangenomeSchematic:
             except:
                 return obj
 
-        return json.dumps(self, default=dumper, indent=4)
+        return json.dumps(self, default=dumper, indent=2)
 
+    def update_first_last_bin(self):
+        self.first_bin = 1  # these have not been properly initialized
+        self.last_bin = self.components[-1].last_bin
+
+    def split(self, cells_per_file):
+        """Splits one Schematic into multiple files with their own
+        unique first and last_bin based on the volume of data desired per
+        file specified by cells_per_file.  """
+        bins_per_file = ceil(cells_per_file / len(self.path_names))
+        # bins_per_schematic = bins_per_row * self.bin_size
+        self.update_first_last_bin()
+        partitions = []
+        borders = [c.last_bin for c in self.components]
+        cut_points = [0]
+        prev_point = 0
+        for start_bin in range(0, self.last_bin, bins_per_file):
+            cut = bisect(borders, start_bin + bins_per_file)
+            cut_points.append(max(prev_point + 1, cut))
+            prev_point = cut
+        # cut_points.append(len(self.components))  # don't chop of dangling end
+        for i, cut in enumerate(cut_points[:-1]):
+            end_cut = cut_points[i + 1]
+            these_comp = self.components[cut:end_cut]
+            partitions.append(
+                PangenomeSchematic(JSON_VERSION,
+                                   self.bin_size,
+                                   these_comp[0].first_bin,
+                                   these_comp[-1].last_bin,
+                                   these_comp, self.path_names, []))
+        return partitions

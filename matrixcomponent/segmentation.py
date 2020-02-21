@@ -9,6 +9,8 @@ Output format
 """
 from typing import List, Tuple, Set, Dict
 from pathlib import Path as osPath
+
+from math import ceil
 from nested_dict import nested_dict
 
 from matrixcomponent.matrix import Path, PangenomeSchematic, Component, LinkColumn, Bin
@@ -56,7 +58,7 @@ def segment_matrix(matrix: List[Path]) -> PangenomeSchematic:
     schematic = PangenomeSchematic(JSON_VERSION,
                                    bin_size,
                                    1,
-                                   1400 * bin_size,
+                                   1,
                                    [], [p.name for p in matrix], [])
     incoming, outgoing, dividers = find_dividers(matrix)
     start_pos = 0
@@ -202,6 +204,16 @@ class SmartFormatter(argparse.HelpFormatter):
         return argparse.HelpFormatter._split_lines(self, text, width)
 
 
+def write_json_files(json_file, schematic: PangenomeSchematic):
+    cells_per_file = 1000000  # adjustable volume of data per file
+    partitions = schematic.split(cells_per_file)
+    for file_nth, part in enumerate(partitions):
+        p = osPath(json_file).with_suffix(f'.schematic{str(file_nth).zfill(3)}.json')
+        with p.open('w') as fpgh9:
+            fpgh9.write(part.json_dump())
+        print("Saved results to", p)
+
+
 def get_arguments():
     """Create the command line interface and return the command line arguments
 
@@ -234,18 +246,18 @@ def get_arguments():
 
     return args
 
+
+
+
 def main():
     global args
     args = get_arguments()
     setup_logging(args.output_folder)
     LOGGER.info("starting...\n")
-    Paths = JSONparser.parse(args.json_file)
-    schematic = segment_matrix(Paths)
-    p = osPath(args.json_file).with_suffix('.schematic.json')
-    with p.open('w') as fpgh9:
-        fpgh9.write(schematic.json_dump())
-    print("Saved results to", p)
-
+    paths = JSONparser.parse(args.json_file)
+    schematic = segment_matrix(paths)
+    del paths
+    write_json_files(args.json_file, schematic)
 
 if __name__ == '__main__':
 
