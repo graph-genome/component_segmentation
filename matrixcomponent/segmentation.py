@@ -10,14 +10,13 @@ Output format
 from typing import List, Tuple, Set, Dict
 from pathlib import Path as osPath
 
-from math import ceil
 from nested_dict import nested_dict
 
-from matrixcomponent.matrix import Path, PangenomeSchematic, Component, LinkColumn, Bin
+from matrixcomponent.matrix import Path, Component, LinkColumn, Bin
+from matrixcomponent.PangenomeSchematic import PangenomeSchematic
 import os
 import logging
 import argparse
-import csv
 import matrixcomponent
 
 import matrixcomponent.JSONparser as JSONparser
@@ -259,8 +258,6 @@ def get_arguments():
     args = parser.parse_args()
 
     return args
-
-
 
 
 def main():
