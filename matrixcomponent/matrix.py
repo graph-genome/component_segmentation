@@ -1,5 +1,6 @@
 """Python object models to be manipulated"""
 import json
+import math
 from bisect import bisect
 
 from dataclasses import dataclass
@@ -91,7 +92,8 @@ class PangenomeSchematic:
     last_bin: int
     components: List[Component]
     path_names: List[str]
-    break_points: List[dict]
+    total_nr_files: int
+    file2bin_mapping: []
 
     def json_dump(self):
         def dumper(obj):
@@ -117,9 +119,14 @@ class PangenomeSchematic:
         bins_per_file = ceil(cells_per_file / len(self.path_names))
         # bins_per_schematic = bins_per_row * self.bin_size
         self.update_first_last_bin()
+        self.total_nr_files = ceil(self.last_bin / bins_per_file)
         partitions = []
         borders = [c.last_bin for c in self.components]
         cut_points = [0]
+
+        # variables cut and end_cut are componentIDs
+        # binIDs are in components.{first,last}_bin
+
         prev_point = 0
         for start_bin in range(0, self.last_bin, bins_per_file):
             cut = bisect(borders, start_bin + bins_per_file)
@@ -134,5 +141,9 @@ class PangenomeSchematic:
                                    self.bin_size,
                                    these_comp[0].first_bin,
                                    these_comp[-1].last_bin,
-                                   these_comp, self.path_names, []))
+                                   these_comp, self.path_names, self.total_nr_files, []))
+            self.file2bin_mapping.append( (self.pad_file_nr(i), these_comp[0].first_bin) )
         return partitions
+
+    def pad_file_nr(self, file_nr):
+        return str(file_nr).zfill(int(math.log10(self.total_nr_files)))

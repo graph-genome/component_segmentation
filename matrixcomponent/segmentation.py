@@ -17,6 +17,7 @@ from matrixcomponent.matrix import Path, PangenomeSchematic, Component, LinkColu
 import os
 import logging
 import argparse
+import csv
 import matrixcomponent
 
 import matrixcomponent.JSONparser as JSONparser
@@ -59,7 +60,7 @@ def segment_matrix(matrix: List[Path]) -> PangenomeSchematic:
                                    bin_size,
                                    1,
                                    1,
-                                   [], [p.name for p in matrix], [])
+                                   [], [p.name for p in matrix], 0, [])
     incoming, outgoing, dividers = find_dividers(matrix)
     start_pos = 0
     for valid_start in sorted(list(dividers)):
@@ -205,13 +206,22 @@ class SmartFormatter(argparse.HelpFormatter):
 
 
 def write_json_files(json_file, schematic: PangenomeSchematic):
-    cells_per_file = 1000000  # adjustable volume of data per file
-    partitions = schematic.split(cells_per_file)
+    #cells_per_file = 1000000  # adjustable volume of data per file
+    partitions = schematic.split(args.cells_per_file)
     for file_nth, part in enumerate(partitions):
-        p = osPath(json_file).with_suffix(f'.schematic{str(file_nth).zfill(3)}.json')
+        p = osPath(json_file).with_suffix(f'.schematic.bin{args.bin_size}.{schematic.pad_file_nr(file_nth)}.json')
         with p.open('w') as fpgh9:
             fpgh9.write(part.json_dump())
         print("Saved results to", p)
+
+    # Also write the file2bin mapping into a csv file:
+    f = osPath(json_file).with_suffix(f'.schematic.bin{args.bin_size}.bin2file.txt')
+    with f.open('w') as out:
+        csv_out=csv.writer(out)
+        csv_out.writerow( ('fileID', 'first_bin') )
+        for row in schematic.file2bin_mapping:
+            csv_out.writerow(row)
+        print("Saved file2bin mapping to", f)
 
 
 def get_arguments():
@@ -237,6 +247,18 @@ def get_arguments():
                         required=True,
                         help='output folder')
 
+    parser.add_argument('-b', '--bin-size',
+                        dest='bin_size',
+                        required=True,
+                        help='bin size: number of nucleotides per bin')
+
+    parser.add_argument('-c', '--cells-per-file',
+                        dest='cells_per_file',
+                        default=0,
+                        type=int,
+                        choices=range(100,100000000),
+                        help='number of cells per file (nr bins = nr cells / nr samples); min 100, max 100Mio')
+
     parser.add_argument('-l', '--log-level',
                         default='DEBUG',
                         choices=('DEBUG', 'INFO', 'WARNING', 'ERROR'),
@@ -253,7 +275,7 @@ def main():
     global args
     args = get_arguments()
     setup_logging(args.output_folder)
-    LOGGER.info("starting...\n")
+    LOGGER.info(f'reading {osPath(args.json_file)}...\n')
     paths = JSONparser.parse(args.json_file)
     schematic = segment_matrix(paths)
     del paths
