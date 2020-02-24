@@ -205,24 +205,16 @@ class SmartFormatter(argparse.HelpFormatter):
 
 
 def write_json_files(json_file, schematic: PangenomeSchematic):
-    #cells_per_file = 1000000  # adjustable volume of data per file
-    partitions, file2bin_mapping = schematic.split(args.cells_per_file)
+    partitions, bin2file_mapping = schematic.split(args.cells_per_file)
     folder = osPath(json_file).with_suffix('')
     os.makedirs(folder, exist_ok=True)  # make directory for all files
     for file_nth, part in enumerate(partitions):
-        p = folder.joinpath(f'chunk{schematic.pad_file_nr(file_nth)}_bin{args.bin_size}.schematic.json')
+        p = folder.joinpath(part.filename(file_nth))
         with p.open('w') as fpgh9:
             fpgh9.write(part.json_dump())
         print("Saved results to", p)
 
-    # Also write the file2bin mapping into a csv file:
-    index_file = folder.joinpath(f'bin2file.json')
-    with index_file.open('w') as out:
-        csv_out=csv.writer(out)
-        csv_out.writerow( ('fileID', 'first_bin') )
-        for row in file2bin_mapping:
-            csv_out.writerow(row)
-        print("Saved file2bin mapping to", index_file)
+    schematic.write_index_file(folder, bin2file_mapping)
 
 
 def get_arguments():
@@ -257,7 +249,6 @@ def get_arguments():
                         dest='cells_per_file',
                         default=1000000,
                         type=int,
-                        choices=range(100,100000000),
                         help='number of cells per file (nr bins = nr cells / nr samples); min 100, max 100Mio')
 
     parser.add_argument('-l', '--log-level',
@@ -282,7 +273,9 @@ def main():
     del paths
     write_json_files(args.json_file, schematic)
 
-if __name__ == '__main__':
 
+if __name__ == '__main__':
     main()
 
+# --json-file=data/run1.B1phi1.i1.seqwish.w100.json --out-folder=data/ --bin-size=100 --cells-per-file=100000
+# --json-file=data/Athaliana_12_individuals_w100000.json --out-folder=data/ --bin-size=100000 --cells-per-file=100000

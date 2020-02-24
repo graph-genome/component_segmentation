@@ -133,7 +133,7 @@ class PangenomeSchematic:
             prev_point = cut
         # cut_points.append(len(self.components))  # don't chop of dangling end
 
-        file2bin_mapping = []
+        bin2file_mapping = []
         for i, cut in enumerate(cut_points[:-1]):
             end_cut = cut_points[i + 1]
             these_comp = self.components[cut:end_cut]
@@ -143,8 +143,24 @@ class PangenomeSchematic:
                                    these_comp[0].first_bin,
                                    these_comp[-1].last_bin,
                                    these_comp, self.path_names, self.total_nr_files))
-            file2bin_mapping.append( (self.pad_file_nr(i), these_comp[0].first_bin) )
-        return partitions, file2bin_mapping
+            bin2file_mapping.append({"first_bin": these_comp[0].first_bin, "file": self.filename(i)})
+        return partitions, bin2file_mapping
 
     def pad_file_nr(self, file_nr):
         return str(file_nr).zfill(int(math.log10(self.total_nr_files)))
+
+    def filename(self, nth_file):
+        return f'chunk{self.pad_file_nr(nth_file)}_bin{self.bin_size}.schematic.json'
+
+    def write_index_file(self, folder, bin2file_mapping):
+        """Also write the file2bin mapping into a master json file
+        eventually, this could have one list per bin size,
+        with all bin size integrated into the same folder"""
+        index_file = folder.joinpath(f'bin2file.json')
+        file_contents = {'bin_size': self.bin_size,
+                         'json_version': JSON_VERSION,
+                         'last_bin': self.last_bin,
+                         'files': bin2file_mapping}
+        with index_file.open('w') as out:
+            out.write(json.dumps(file_contents, indent=4))
+            print("Saved file2bin mapping to", index_file)
