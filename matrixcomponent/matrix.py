@@ -93,7 +93,6 @@ class PangenomeSchematic:
     components: List[Component]
     path_names: List[str]
     total_nr_files: int
-    file2bin_mapping: []
 
     def json_dump(self):
         def dumper(obj):
@@ -133,6 +132,8 @@ class PangenomeSchematic:
             cut_points.append(max(prev_point + 1, cut))
             prev_point = cut
         # cut_points.append(len(self.components))  # don't chop of dangling end
+
+        file2bin_mapping = []
         for i, cut in enumerate(cut_points[:-1]):
             end_cut = cut_points[i + 1]
             these_comp = self.components[cut:end_cut]
@@ -141,9 +142,9 @@ class PangenomeSchematic:
                                    self.bin_size,
                                    these_comp[0].first_bin,
                                    these_comp[-1].last_bin,
-                                   these_comp, self.path_names, self.total_nr_files, []))
-            self.file2bin_mapping.append( (self.pad_file_nr(i), these_comp[0].first_bin) )
-        return partitions
+                                   these_comp, self.path_names, self.total_nr_files))
+            file2bin_mapping.append( (self.pad_file_nr(i), these_comp[0].first_bin) )
+        return partitions, file2bin_mapping
 
     def pad_file_nr(self, file_nr):
         return str(file_nr).zfill(int(math.log10(self.total_nr_files)))

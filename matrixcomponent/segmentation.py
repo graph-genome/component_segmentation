@@ -52,15 +52,14 @@ def populate_component_matrix(paths: List[Path], schematic: PangenomeSchematic):
     populate_component_occupancy(schematic)
 
 
-def segment_matrix(matrix: List[Path]) -> PangenomeSchematic:
+def segment_matrix(matrix: List[Path], bin_size) -> PangenomeSchematic:
     from matrixcomponent import JSON_VERSION
     print(f"Starting Segmentation process on {len(matrix)} Paths.")
-    bin_size = 100000  # FIXME: parse bin_size from filename
     schematic = PangenomeSchematic(JSON_VERSION,
                                    bin_size,
                                    1,
                                    1,
-                                   [], [p.name for p in matrix], 0, [])
+                                   [], [p.name for p in matrix], 1)
     incoming, outgoing, dividers = find_dividers(matrix)
     start_pos = 0
     for valid_start in sorted(list(dividers)):
@@ -207,21 +206,23 @@ class SmartFormatter(argparse.HelpFormatter):
 
 def write_json_files(json_file, schematic: PangenomeSchematic):
     #cells_per_file = 1000000  # adjustable volume of data per file
-    partitions = schematic.split(args.cells_per_file)
+    partitions, file2bin_mapping = schematic.split(args.cells_per_file)
+    folder = osPath(json_file).with_suffix('')
+    os.makedirs(folder, exist_ok=True)  # make directory for all files
     for file_nth, part in enumerate(partitions):
-        p = osPath(json_file).with_suffix(f'.schematic.bin{args.bin_size}.{schematic.pad_file_nr(file_nth)}.json')
+        p = folder.joinpath(f'chunk{schematic.pad_file_nr(file_nth)}_bin{args.bin_size}.schematic.json')
         with p.open('w') as fpgh9:
             fpgh9.write(part.json_dump())
         print("Saved results to", p)
 
     # Also write the file2bin mapping into a csv file:
-    f = osPath(json_file).with_suffix(f'.schematic.bin{args.bin_size}.bin2file.txt')
-    with f.open('w') as out:
+    index_file = folder.joinpath(f'bin2file.json')
+    with index_file.open('w') as out:
         csv_out=csv.writer(out)
         csv_out.writerow( ('fileID', 'first_bin') )
-        for row in schematic.file2bin_mapping:
+        for row in file2bin_mapping:
             csv_out.writerow(row)
-        print("Saved file2bin mapping to", f)
+        print("Saved file2bin mapping to", index_file)
 
 
 def get_arguments():
@@ -254,7 +255,7 @@ def get_arguments():
 
     parser.add_argument('-c', '--cells-per-file',
                         dest='cells_per_file',
-                        default=0,
+                        default=1000000,
                         type=int,
                         choices=range(100,100000000),
                         help='number of cells per file (nr bins = nr cells / nr samples); min 100, max 100Mio')
@@ -277,7 +278,7 @@ def main():
     setup_logging(args.output_folder)
     LOGGER.info(f'reading {osPath(args.json_file)}...\n')
     paths = JSONparser.parse(args.json_file)
-    schematic = segment_matrix(paths)
+    schematic = segment_matrix(paths, args.bin_size)
     del paths
     write_json_files(args.json_file, schematic)
 
