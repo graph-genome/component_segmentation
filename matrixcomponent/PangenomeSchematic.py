@@ -64,13 +64,14 @@ class PangenomeSchematic:
         for i, cut in enumerate(cut_points[:-1]):
             end_cut = cut_points[i + 1]
             these_comp = self.components[cut:end_cut]
-            partitions.append(
-                PangenomeSchematic(JSON_VERSION,
-                                   self.bin_size,
-                                   these_comp[0].first_bin,
-                                   these_comp[-1].last_bin,
-                                   these_comp, self.path_names, self.total_nr_files))
-            bin2file_mapping.append({"first_bin": these_comp[0].first_bin, "file": self.filename(i)})
+            if these_comp:
+                partitions.append(
+                    PangenomeSchematic(JSON_VERSION,
+                                       self.bin_size,
+                                       these_comp[0].first_bin,
+                                       these_comp[-1].last_bin,
+                                       these_comp, self.path_names, self.total_nr_files))
+                bin2file_mapping.append({"first_bin": these_comp[0].first_bin, "file": self.filename(i)})
         return partitions, bin2file_mapping
 
     def pad_file_nr(self, file_nr):
