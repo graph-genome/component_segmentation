@@ -51,11 +51,11 @@ def populate_component_matrix(paths: List[Path], schematic: PangenomeSchematic):
     populate_component_occupancy(schematic)
 
 
-def segment_matrix(matrix: List[Path], bin_size) -> PangenomeSchematic:
+def segment_matrix(matrix: List[Path], bin_width) -> PangenomeSchematic:
     from matrixcomponent import JSON_VERSION
     print(f"Starting Segmentation process on {len(matrix)} Paths.")
     schematic = PangenomeSchematic(JSON_VERSION,
-                                   bin_size,
+                                   bin_width,
                                    1,
                                    1,
                                    [], [p.name for p in matrix], 1)
@@ -239,8 +239,8 @@ def get_arguments():
                         required=True,
                         help='output folder')
 
-    parser.add_argument('-b', '--bin-size',
-                        dest='bin_size',
+    parser.add_argument('-b', '--bin-width',
+                        dest='bin_width',
                         required=True,
                         help='bin size: number of nucleotides per bin')
 
@@ -266,7 +266,7 @@ def main():
     setup_logging(args.output_folder)
     LOGGER.info(f'reading {osPath(args.json_file)}...\n')
     paths = JSONparser.parse(args.json_file)
-    schematic = segment_matrix(paths, args.bin_size)
+    schematic = segment_matrix(paths, args.bin_width)
     del paths
     write_json_files(args.json_file, schematic)
 
@@ -274,5 +274,5 @@ def main():
 if __name__ == '__main__':
     main()
 
-# --json-file=data/run1.B1phi1.i1.seqwish.w100.json --out-folder=data/ --bin-size=100 --cells-per-file=100000
-# --json-file=data/Athaliana_12_individuals_w100000.json --out-folder=data/ --bin-size=100000 --cells-per-file=100000
+# --json-file=data/run1.B1phi1.i1.seqwish.w100.json --out-folder=data/ --bin-width=100 --cells-per-file=100000
+# --json-file=data/Athaliana_12_individuals_w100000.json --out-folder=data/ --bin-width=100000 --cells-per-file=100000

@@ -14,7 +14,7 @@ from matrixcomponent.matrix import Component, Bin
 @dataclass
 class PangenomeSchematic:
     json_version: int
-    bin_size: int
+    bin_width: int
     first_bin: int
     last_bin: int
     components: List[Component]
@@ -43,7 +43,7 @@ class PangenomeSchematic:
         unique first and last_bin based on the volume of data desired per
         file specified by cells_per_file.  """
         bins_per_file = ceil(cells_per_file / len(self.path_names))
-        # bins_per_schematic = bins_per_row * self.bin_size
+        # bins_per_schematic = bins_per_row * self.bin_width
         self.update_first_last_bin()
         self.total_nr_files = ceil(self.last_bin / bins_per_file)
         partitions = []
@@ -64,10 +64,10 @@ class PangenomeSchematic:
         for i, cut in enumerate(cut_points[:-1]):
             end_cut = cut_points[i + 1]
             these_comp = self.components[cut:end_cut]
-            if these_comp:
+            if these_comp:  # when we're out of data because the last component is 1 wide
                 partitions.append(
                     PangenomeSchematic(JSON_VERSION,
-                                       self.bin_size,
+                                       self.bin_width,
                                        these_comp[0].first_bin,
                                        these_comp[-1].last_bin,
                                        these_comp, self.path_names, self.total_nr_files))
@@ -78,14 +78,14 @@ class PangenomeSchematic:
         return str(file_nr).zfill(int(math.log10(self.total_nr_files)))
 
     def filename(self, nth_file):
-        return f'chunk{self.pad_file_nr(nth_file)}_bin{self.bin_size}.schematic.json'
+        return f'chunk{self.pad_file_nr(nth_file)}_bin{self.bin_width}.schematic.json'
 
     def write_index_file(self, folder, bin2file_mapping):
         """Also write the file2bin mapping into a master json file
         eventually, this could have one list per bin size,
         with all bin size integrated into the same folder"""
         index_file = folder.joinpath(f'bin2file.json')
-        file_contents = {'bin_size': self.bin_size,
+        file_contents = {'bin_width': self.bin_width,
                          'json_version': JSON_VERSION,
                          'last_bin': self.last_bin,
                          'files': bin2file_mapping}
