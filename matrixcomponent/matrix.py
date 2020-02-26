@@ -77,3 +77,6 @@ class Component:
         self.arrivals = []  # reverse ordered Links
         self.departures = []  # ordered Links
 
+    def column_count(self):
+        return len(self.arrivals) + len(self.departures) + self.last_bin - self.first_bin
+

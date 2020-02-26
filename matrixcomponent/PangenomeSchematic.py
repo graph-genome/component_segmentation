@@ -47,18 +47,23 @@ class PangenomeSchematic:
         self.update_first_last_bin()
         self.total_nr_files = ceil(self.last_bin / bins_per_file)
         partitions = []
-        borders = [c.last_bin for c in self.components]
-        cut_points = [0]
+        column_counts = []
+        rolling_sum = 0
+        # accounting for SVs in column count (cells per file) makes file size much more stable
+        for c in self.components:
+            rolling_sum += c.column_count()
+            column_counts.append(rolling_sum)
 
+        cut_points = [0]
         # variables cut and end_cut are componentIDs
         # binIDs are in components.{first,last}_bin
 
         prev_point = 0
-        for start_bin in range(0, self.last_bin, bins_per_file):
-            cut = bisect(borders, start_bin + bins_per_file)
+        for start_bin in range(0, column_counts[-1] + bins_per_file, bins_per_file):
+            cut = bisect(column_counts, start_bin + bins_per_file)
             cut_points.append(max(prev_point + 1, cut))
             prev_point = cut
-        # cut_points.append(len(self.components))  # don't chop of dangling end
+        cut_points.append(len(self.components))  # don't chop of dangling end
 
         bin2file_mapping = []
         for i, cut in enumerate(cut_points[:-1]):
