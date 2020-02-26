@@ -1,4 +1,4 @@
-JSON_VERSION = 9  # This version added adjacent connectors in departures column
+JSON_VERSION = 10  # This version added adjacent connectors in departures column
 
 import logging
 

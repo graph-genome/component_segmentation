@@ -71,7 +71,9 @@ class PangenomeSchematic:
                                        these_comp[0].first_bin,
                                        these_comp[-1].last_bin,
                                        these_comp, self.path_names, self.total_nr_files))
-                bin2file_mapping.append({"first_bin": these_comp[0].first_bin, "file": self.filename(i)})
+                bin2file_mapping.append({"file": self.filename(i),
+                                         "first_bin": these_comp[0].first_bin,
+                                         "last_bin": these_comp[-1].last_bin})
         return partitions, bin2file_mapping
 
     def pad_file_nr(self, file_nr):
