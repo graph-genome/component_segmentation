@@ -246,9 +246,10 @@ def get_arguments():
 
     parser.add_argument('-c', '--cells-per-file',
                         dest='cells_per_file',
-                        default=1000000,
+                        default=5000,
                         type=int,
-                        help='number of cells per file (nr bins = nr cells / nr samples); min 100, max 100Mio')
+                        help='Tip: Adjust this number to get chunk files output close to 2MB. '
+                             'Number of cells per file (#bins per file = #cells / #paths)')
 
     parser.add_argument('-l', '--log-level',
                         default='DEBUG',
@@ -274,5 +275,5 @@ def main():
 if __name__ == '__main__':
     main()
 
-# --json-file=data/run1.B1phi1.i1.seqwish.w100.json --out-folder=data/ --bin-width=100 --cells-per-file=100000
-# --json-file=data/Athaliana_12_individuals_w100000.json --out-folder=data/ --bin-width=100000 --cells-per-file=100000
+# --json-file=data/run1.B1phi1.i1.seqwish.w100.json --out-folder=data/ --bin-width=100 --cells-per-file=5000
+# --json-file=data/Athaliana_12_individuals_w100000.json --out-folder=data/ --bin-width=100000 --cells-per-file=10000

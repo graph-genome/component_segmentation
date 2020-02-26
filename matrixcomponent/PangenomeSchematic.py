@@ -1,4 +1,6 @@
 import json
+from statistics import mean
+
 import math
 from bisect import bisect
 
@@ -42,30 +44,14 @@ class PangenomeSchematic:
         """Splits one Schematic into multiple files with their own
         unique first and last_bin based on the volume of data desired per
         file specified by cells_per_file.  """
-        bins_per_file = ceil(cells_per_file / len(self.path_names))
-        # bins_per_schematic = bins_per_row * self.bin_width
-        self.update_first_last_bin()
-        self.total_nr_files = ceil(self.last_bin / bins_per_file)
-        partitions = []
-        column_counts = []
-        rolling_sum = 0
-        # accounting for SVs in column count (cells per file) makes file size much more stable
-        for c in self.components:
-            rolling_sum += c.column_count()
-            column_counts.append(rolling_sum)
+        avg_paths = self.lazy_average_occupants()
+        bins_per_file = ceil(cells_per_file / avg_paths)
+        column_counts = self.rolling_sum_column_count()
+        cut_points = self.find_cut_points_in_file_split(bins_per_file, column_counts)
 
-        cut_points = [0]
         # variables cut and end_cut are componentIDs
         # binIDs are in components.{first,last}_bin
-
-        prev_point = 0
-        for start_bin in range(0, column_counts[-1] + bins_per_file, bins_per_file):
-            cut = bisect(column_counts, start_bin + bins_per_file)
-            cut_points.append(max(prev_point + 1, cut))
-            prev_point = cut
-        cut_points.append(len(self.components))  # don't chop of dangling end
-
-        bin2file_mapping = []
+        partitions, bin2file_mapping = [], []
         for i, cut in enumerate(cut_points[:-1]):
             end_cut = cut_points[i + 1]
             these_comp = self.components[cut:end_cut]
@@ -81,8 +67,35 @@ class PangenomeSchematic:
                                          "last_bin": these_comp[-1].last_bin})
         return partitions, bin2file_mapping
 
+    def find_cut_points_in_file_split(self, bins_per_file, column_counts):
+        """Use binary search bisect to find the component boundaries closest to
+        target breakpoints for splitting files."""
+        cut_points, prev_point = [0], 0
+        for start_bin in range(0, column_counts[-1], bins_per_file):
+            cut = bisect(column_counts, start_bin + bins_per_file)
+            cut_points.append(max(prev_point + 1, cut))
+            prev_point = cut
+        cut_points.append(len(self.components))  # don't chop of dangling end
+        self.total_nr_files = len(cut_points) - 1
+        return cut_points
+
+    def rolling_sum_column_count(self):
+        """accounting for SVs in column count (cells per file) makes file size much more stable"""
+        self.update_first_last_bin()
+        column_counts, rolling_sum = [], 0
+        for c in self.components:
+            rolling_sum += c.column_count()
+            column_counts.append(rolling_sum)
+        return column_counts
+
+    def lazy_average_occupants(self):
+        """grab four random components and check how many occupants they have"""
+        samples = [self.components[int(len(self.components) * i)] for i in (.2, .4, .6, .8)]
+        avg_paths = mean([sum(x.occupants) for x in samples])
+        return avg_paths
+
     def pad_file_nr(self, file_nr):
-        return str(file_nr).zfill(int(math.log10(self.total_nr_files)))
+        return str(file_nr).zfill(int(math.log10(self.total_nr_files) + 1))
 
     def filename(self, nth_file):
         return f'chunk{self.pad_file_nr(nth_file)}_bin{self.bin_width}.schematic.json'

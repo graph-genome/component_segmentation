@@ -78,5 +78,7 @@ class Component:
         self.departures = []  # ordered Links
 
     def column_count(self):
-        return len(self.arrivals) + len(self.departures) + self.last_bin - self.first_bin
+        """Used to estimate JSON size.  LinkColumns are counted twice because they have a
+        participants boolean list."""
+        return 2*(len(self.arrivals) + len(self.departures)) + self.last_bin - self.first_bin
 
