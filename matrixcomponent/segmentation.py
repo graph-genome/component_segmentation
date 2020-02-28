@@ -207,8 +207,8 @@ def write_json_files(json_file, schematic: PangenomeSchematic):
     partitions, bin2file_mapping = schematic.split(args.cells_per_file)
     folder = osPath(json_file).with_suffix('')
     os.makedirs(folder, exist_ok=True)  # make directory for all files
-    for file_nth, part in enumerate(partitions):
-        p = folder.joinpath(part.filename(file_nth))
+    for part in partitions:
+        p = folder.joinpath(part.filename)
         with p.open('w') as fpgh9:
             fpgh9.write(part.json_dump())
         print("Saved results to", p)

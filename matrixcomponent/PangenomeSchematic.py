@@ -56,15 +56,14 @@ class PangenomeSchematic:
             end_cut = cut_points[i + 1]
             these_comp = self.components[cut:end_cut]
             if these_comp:  # when we're out of data because the last component is 1 wide
-                partitions.append(
-                    PangenomeSchematic(JSON_VERSION,
-                                       self.bin_width,
-                                       these_comp[0].first_bin,
-                                       these_comp[-1].last_bin,
-                                       these_comp, self.path_names, self.total_nr_files))
-                bin2file_mapping.append({"file": self.filename(i),
-                                         "first_bin": these_comp[0].first_bin,
-                                         "last_bin": these_comp[-1].last_bin})
+                schematic = PangenomeSchematic(JSON_VERSION, self.bin_width, these_comp[0].first_bin,
+                                               these_comp[-1].last_bin, these_comp, self.path_names,
+                                               self.total_nr_files)
+                schematic.filename = self.filename(i)  # save for consistency IMPORTANT
+                partitions.append(schematic)
+                bin2file_mapping.append({"file": schematic.filename,
+                                         "first_bin": schematic.first_bin,
+                                         "last_bin": schematic.last_bin})
         return partitions, bin2file_mapping
 
     def find_cut_points_in_file_split(self, bins_per_file, column_counts):
