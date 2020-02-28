@@ -33,8 +33,8 @@ class PangenomeSchematic:
                 return obj.__dict__
             except:
                 return obj
-
-        return json.dumps(self, default=dumper, indent=2)
+        # whitespace and [] takes up the majority of the file size
+        return json.dumps(self, default=dumper, indent=None, separators=(',', ': '))
 
     def update_first_last_bin(self):
         self.first_bin = 1  # these have not been properly initialized

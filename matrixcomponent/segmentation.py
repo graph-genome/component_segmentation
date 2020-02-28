@@ -61,7 +61,7 @@ def segment_matrix(matrix: List[Path], bin_width) -> PangenomeSchematic:
                                    [], [p.name for p in matrix], 1)
     incoming, outgoing, dividers = find_dividers(matrix)
     start_pos = 0
-    for valid_start in sorted(list(dividers)):
+    for valid_start in sorted(list(dividers)):  #TODO: cap Component size at 4,000 bins
         if valid_start != 0:
             current = Component(start_pos, valid_start - 1)
             # current.active_members = 1
