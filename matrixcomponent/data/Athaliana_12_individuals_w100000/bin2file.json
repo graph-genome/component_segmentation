@@ -6,66 +6,51 @@
         {
             "file": "chunk00_bin100000.schematic.json",
             "first_bin": 0,
-            "last_bin": 345
+            "last_bin": 383
         },
         {
             "file": "chunk01_bin100000.schematic.json",
-            "first_bin": 346,
-            "last_bin": 583
+            "first_bin": 384,
+            "last_bin": 715
         },
         {
             "file": "chunk02_bin100000.schematic.json",
-            "first_bin": 584,
-            "last_bin": 967
+            "first_bin": 716,
+            "last_bin": 1221
         },
         {
             "file": "chunk03_bin100000.schematic.json",
-            "first_bin": 968,
-            "last_bin": 1526
+            "first_bin": 1222,
+            "last_bin": 1803
         },
         {
             "file": "chunk04_bin100000.schematic.json",
-            "first_bin": 1527,
-            "last_bin": 1810
+            "first_bin": 1804,
+            "last_bin": 2173
         },
         {
             "file": "chunk05_bin100000.schematic.json",
-            "first_bin": 1811,
-            "last_bin": 2130
+            "first_bin": 2174,
+            "last_bin": 2607
         },
         {
             "file": "chunk06_bin100000.schematic.json",
-            "first_bin": 2131,
-            "last_bin": 2564
+            "first_bin": 2608,
+            "last_bin": 2794
         },
         {
             "file": "chunk07_bin100000.schematic.json",
-            "first_bin": 2565,
-            "last_bin": 2689
+            "first_bin": 2795,
+            "last_bin": 3127
         },
         {
             "file": "chunk08_bin100000.schematic.json",
-            "first_bin": 2690,
-            "last_bin": 2874
+            "first_bin": 3128,
+            "last_bin": 3586
         },
         {
             "file": "chunk09_bin100000.schematic.json",
-            "first_bin": 2875,
-            "last_bin": 3211
-        },
-        {
-            "file": "chunk10_bin100000.schematic.json",
-            "first_bin": 3212,
-            "last_bin": 3558
-        },
-        {
-            "file": "chunk11_bin100000.schematic.json",
-            "first_bin": 3559,
-            "last_bin": 3957
-        },
-        {
-            "file": "chunk12_bin100000.schematic.json",
-            "first_bin": 3958,
+            "first_bin": 3587,
             "last_bin": 4065
         }
     ]

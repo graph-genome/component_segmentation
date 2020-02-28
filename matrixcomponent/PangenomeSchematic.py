@@ -89,7 +89,7 @@ class PangenomeSchematic:
 
     def lazy_average_occupants(self):
         """grab four random components and check how many occupants they have"""
-        samples = [self.components[int(len(self.components) * i)] for i in (.2, .4, .6, .8)]
+        samples = [self.components[int(len(self.components) * (perc/100))] for perc in range(1, 99)]
         avg_paths = mean([sum(x.occupants) for x in samples])
         return avg_paths
 

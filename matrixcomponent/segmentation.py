@@ -9,7 +9,6 @@ Output format
 """
 from typing import List, Tuple, Set, Dict
 from pathlib import Path as osPath
-
 from nested_dict import nested_dict
 
 from matrixcomponent.matrix import Path, Component, LinkColumn, Bin
@@ -21,6 +20,7 @@ import matrixcomponent
 
 import matrixcomponent.JSONparser as JSONparser
 
+MAX_COMPONENT_SIZE = 100  # automatic calculation from cells_per_file did not go well
 LOGGER = logging.getLogger(__name__)
 """logging.Logger: The logger for this module"""
 
@@ -51,7 +51,7 @@ def populate_component_matrix(paths: List[Path], schematic: PangenomeSchematic):
     populate_component_occupancy(schematic)
 
 
-def segment_matrix(matrix: List[Path], bin_width) -> PangenomeSchematic:
+def segment_matrix(matrix: List[Path], bin_width, cells_per_file) -> PangenomeSchematic:
     from matrixcomponent import JSON_VERSION
     print(f"Starting Segmentation process on {len(matrix)} Paths.")
     schematic = PangenomeSchematic(JSON_VERSION,
@@ -59,9 +59,9 @@ def segment_matrix(matrix: List[Path], bin_width) -> PangenomeSchematic:
                                    1,
                                    1,
                                    [], [p.name for p in matrix], 1)
-    incoming, outgoing, dividers = find_dividers(matrix)
+    incoming, outgoing, dividers = dividers_with_max_size(matrix, cells_per_file)
     start_pos = 0
-    for valid_start in sorted(list(dividers)):  #TODO: cap Component size at 4,000 bins
+    for valid_start in dividers:
         if valid_start != 0:
             current = Component(start_pos, valid_start - 1)
             # current.active_members = 1
@@ -100,6 +100,24 @@ def segment_matrix(matrix: List[Path], bin_width) -> PangenomeSchematic:
     print(f"Created {nLinkColumns} LinkColumns")
 
     return schematic
+
+
+def dividers_with_max_size(matrix: List[Path], cells_per_file: int):
+    """Adds in additional dividers to ensure very large components are split into
+    multiple components with no Links."""
+    incoming, outgoing, dividers = find_dividers(matrix)
+    # estimate number of paths, x10 because most paths are empty
+    dividers_extended = []
+    prev = 0
+    for div in sorted(list(dividers)):
+        gap_size = div - prev
+        if gap_size > MAX_COMPONENT_SIZE:
+            for i in range(prev + MAX_COMPONENT_SIZE, div, MAX_COMPONENT_SIZE):
+                dividers_extended.append(i)  # add a series of dividers spaced ^ apart
+        prev = div
+        dividers_extended.append(div)
+
+    return incoming, outgoing, dividers_extended
 
 
 def add_adjacent_connector_column(component, next_component, schematic):
@@ -166,7 +184,7 @@ def find_dividers(matrix: List[Path]) -> Tuple[Dict[int, Dict[int, set]],
           f"Found {len(dividers)} dividers.")
     dividers.add(max_bin + 1)  # end of pangenome
     print(f"Eliminated {len(copy_arrivals)} self-loops")
-    print(uniq_links)
+    print(f"Found {len(uniq_links)} unique links")
 
     return entering, leaving, dividers
 
@@ -267,7 +285,7 @@ def main():
     setup_logging(args.output_folder)
     LOGGER.info(f'reading {osPath(args.json_file)}...\n')
     paths = JSONparser.parse(args.json_file)
-    schematic = segment_matrix(paths, args.bin_width)
+    schematic = segment_matrix(paths, args.bin_width, args.cells_per_file)
     del paths
     write_json_files(args.json_file, schematic)
 
