@@ -184,6 +184,9 @@ def find_dividers(matrix: List[Path]) -> Tuple[Dict[int, Dict[int, set]],
           f"Found {len(dividers)} dividers.")
     dividers.add(max_bin + 1)  # end of pangenome
     print(f"Eliminated {len(copy_arrivals)} self-loops")
+    n_links = sum([len(p.links) for p in matrix])
+    print(f"Input has {n_links} listed Links.  "
+          f"Segmentation eliminated {(1-len(uniq_links)/n_links)*100}% of them.")
     print(f"Found {len(uniq_links)} unique links")
 
     return entering, leaving, dividers
