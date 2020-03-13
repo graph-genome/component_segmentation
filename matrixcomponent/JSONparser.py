@@ -1,6 +1,7 @@
 import json
 import logging
 import matrixcomponent.matrix as matrix
+from matrixcomponent import ODGI_VERSION
 
 LOGGER = logging.getLogger(__name__)
 
@@ -12,6 +13,12 @@ def parse(file):
 
         paths = []
         for path in data:
+            if "odgi_version" in path:
+                # this is the header
+                assert path["odgi_version"] == ODGI_VERSION, f"Expecting version {ODGI_VERSION}." \
+                    f"This version added the header with pangenome nucleotide count."
+                print(f"Found file with {path['pangenome_length']} nucleotides in the pangenome and"
+                      f" a {path['bin_width']}bp bin width.", flush=True)
             if "path_name" in path:
                 LOGGER.info("reading " + path['path_name'])
 

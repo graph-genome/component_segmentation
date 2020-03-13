@@ -1,4 +1,5 @@
 JSON_VERSION = 10  # This version added adjacent connectors in departures column
+ODGI_VERSION = 10
 
 import logging
 
