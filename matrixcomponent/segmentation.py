@@ -290,7 +290,7 @@ def main():
     paths = JSONparser.parse(args.json_file)
     schematic = segment_matrix(paths, args.bin_width, args.cells_per_file)
     del paths
-    write_json_files(args.json_file, schematic)
+    write_json_files(args.output_folder, schematic)
 
 
 if __name__ == '__main__':
