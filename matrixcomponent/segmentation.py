@@ -288,7 +288,7 @@ def main():
     setup_logging(args.output_folder)
     LOGGER.info(f'reading {osPath(args.json_file)}...\n')
     paths = JSONparser.parse(args.json_file)
-    schematic = segment_matrix(paths, args.bin_width, args.cells_per_file)
+    schematic = segment_matrix(paths, int(args.bin_width), args.cells_per_file)
     del paths
     write_json_files(args.output_folder, schematic)
 
