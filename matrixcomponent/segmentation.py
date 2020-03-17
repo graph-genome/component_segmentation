@@ -226,7 +226,7 @@ class SmartFormatter(argparse.HelpFormatter):
 
 def write_json_files(json_file, schematic: PangenomeSchematic):
     partitions, bin2file_mapping = schematic.split(args.cells_per_file)
-    folder = osPath(json_file).with_suffix('')
+    folder = osPath(json_file)
     os.makedirs(folder, exist_ok=True)  # make directory for all files
     for part in partitions:
         p = folder.joinpath(part.filename)
