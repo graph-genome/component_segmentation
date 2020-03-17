@@ -22,6 +22,7 @@ class PangenomeSchematic:
     components: List[Component]
     path_names: List[str]
     total_nr_files: int
+    pangenome_length: int
 
     def json_dump(self):
         def dumper(obj):
@@ -58,7 +59,7 @@ class PangenomeSchematic:
             if these_comp:  # when we're out of data because the last component is 1 wide
                 schematic = PangenomeSchematic(JSON_VERSION, self.bin_width, these_comp[0].first_bin,
                                                these_comp[-1].last_bin, these_comp, self.path_names,
-                                               self.total_nr_files)
+                                               self.total_nr_files, self.pangenome_length)
                 schematic.filename = self.filename(i)  # save for consistency IMPORTANT
                 partitions.append(schematic)
                 bin2file_mapping.append({"file": schematic.filename,
@@ -107,6 +108,7 @@ class PangenomeSchematic:
         file_contents = {'bin_width': self.bin_width,
                          'json_version': JSON_VERSION,
                          'last_bin': self.last_bin,
+                         'pangenome_length': self.pangenome_length,
                          'files': bin2file_mapping}
         with index_file.open('w') as out:
             out.write(json.dumps(file_contents, indent=4))

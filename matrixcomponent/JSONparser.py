@@ -12,6 +12,7 @@ def parse(file):
                 data.append(json.loads(line))
 
         paths = []
+        pangenome_length = 0
         for path in data:
             if "odgi_version" in path:
                 # this is the header
@@ -19,6 +20,7 @@ def parse(file):
                     f"This version added the header with pangenome nucleotide count."
                 print(f"Found file with {path['pangenome_length']} nucleotides in the pangenome and"
                       f" a {path['bin_width']}bp bin width.", flush=True)
+                pangenome_length = path['pangenome_length']
             if "path_name" in path:
                 LOGGER.info("reading " + path['path_name'])
 
@@ -33,5 +35,5 @@ def parse(file):
 
                 paths.append(p)
 
-        return(paths)
+        return(paths, pangenome_length)
 
