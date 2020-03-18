@@ -260,11 +260,6 @@ def get_arguments():
                         required=True,
                         help='output folder')
 
-    parser.add_argument('-b', '--bin-width',
-                        dest='bin_width',
-                        required=True,
-                        help='bin size: number of nucleotides per bin')
-
     parser.add_argument('-c', '--cells-per-file',
                         dest='cells_per_file',
                         default=5000,
@@ -287,8 +282,8 @@ def main():
     args = get_arguments()
     setup_logging(args.output_folder)
     LOGGER.info(f'reading {osPath(args.json_file)}...\n')
-    paths, pangenome_length = JSONparser.parse(args.json_file)
-    schematic = segment_matrix(paths, int(args.bin_width), args.cells_per_file, pangenome_length)
+    paths, pangenome_length, bin_width = JSONparser.parse(args.json_file)
+    schematic = segment_matrix(paths, bin_width, args.cells_per_file, pangenome_length)
     del paths
     write_json_files(args.output_folder, schematic)
 

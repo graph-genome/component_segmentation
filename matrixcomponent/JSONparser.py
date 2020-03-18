@@ -21,6 +21,7 @@ def parse(file):
                 print(f"Found file with {path['pangenome_length']} nucleotides in the pangenome and"
                       f" a {path['bin_width']}bp bin width.", flush=True)
                 pangenome_length = path['pangenome_length']
+                bin_width = path['bin_width']
             if "path_name" in path:
                 LOGGER.info("reading " + path['path_name'])
 
@@ -35,5 +36,5 @@ def parse(file):
 
                 paths.append(p)
 
-        return(paths, pangenome_length)
+        return(paths, pangenome_length, bin_width)
 
