@@ -10,6 +10,7 @@ Output format
 from typing import List, Tuple, Set, Dict
 from pathlib import Path as osPath
 from nested_dict import nested_dict
+from datetime import datetime
 
 from matrixcomponent.matrix import Path, Component, LinkColumn, Bin
 from matrixcomponent.PangenomeSchematic import PangenomeSchematic
@@ -205,9 +206,16 @@ def discard_useless_links(matrix: List[Path]):
         path.links = keep  # all other Paths get deleted
 
 
-def setup_logging(output_dir):
+def setup_logging():
     """Setup the logging, add a log file"""
-    log_name = os.path.join(output_dir, 'log')
+    log_name = osPath(args.json_file).with_suffix('.log')
+    if args.output_folder:
+        log_name = osPath(args.output_folder).joinpath('log')
+        os.makedirs(args.output_folder, exist_ok=True)
+    if log_name.exists():
+        t = datetime.now()
+        timestr = f"{t.year}{t.month:02}{t.day:02}-{t.hour:02}:{t.minute:02}:{t.second:02}"
+        os.rename(log_name, log_name.with_suffix('.' + str(timestr)))
     handler = logging.FileHandler(log_name)
     handler.setLevel(args.log_level)
     handler.setFormatter(logging.Formatter(matrixcomponent.LOGGING_FORMAT_STR,
@@ -226,7 +234,9 @@ class SmartFormatter(argparse.HelpFormatter):
 
 def write_json_files(json_file, schematic: PangenomeSchematic):
     partitions, bin2file_mapping = schematic.split(args.cells_per_file)
-    folder = osPath(json_file)
+    folder = osPath(json_file).parent
+    if args.output_folder:
+        folder = osPath(args.output_folder)
     os.makedirs(folder, exist_ok=True)  # make directory for all files
     for part in partitions:
         p = folder.joinpath(part.filename)
@@ -257,7 +267,6 @@ def get_arguments():
 
     parser.add_argument('-o', '--out-folder',
                         dest='output_folder',
-                        required=True,
                         help='output folder')
 
     parser.add_argument('-c', '--cells-per-file',
@@ -280,7 +289,7 @@ def get_arguments():
 def main():
     global args
     args = get_arguments()
-    setup_logging(args.output_folder)
+    setup_logging()
     LOGGER.info(f'reading {osPath(args.json_file)}...\n')
     paths, pangenome_length, bin_width = JSONparser.parse(args.json_file)
     schematic = segment_matrix(paths, bin_width, args.cells_per_file, pangenome_length)
