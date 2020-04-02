@@ -12,6 +12,8 @@ from pathlib import Path as osPath
 from nested_dict import nested_dict
 from datetime import datetime
 
+from DNASkittleUtils.Contigs import Contig, read_contigs, write_contigs_to_file
+
 from matrixcomponent.matrix import Path, Component, LinkColumn, Bin
 from matrixcomponent.PangenomeSchematic import PangenomeSchematic
 import os
@@ -234,10 +236,12 @@ class SmartFormatter(argparse.HelpFormatter):
 
 def write_json_files(json_file, schematic: PangenomeSchematic):
     partitions, bin2file_mapping = schematic.split(args.cells_per_file)
+
     folder = osPath(json_file).parent
     if args.output_folder:
         folder = osPath(args.output_folder)
     os.makedirs(folder, exist_ok=True)  # make directory for all files
+
     for part in partitions:
         p = folder.joinpath(part.filename)
         with p.open('w') as fpgh9:
@@ -245,6 +249,20 @@ def write_json_files(json_file, schematic: PangenomeSchematic):
         print("Saved results to", p)
 
     schematic.write_index_file(folder, bin2file_mapping)
+
+
+def write_fasta_files(odgi_fasta, schematic: PangenomeSchematic):
+    partitions, bin2file_mapping = schematic.split(args.cells_per_file)
+    fasta = read_contigs(odgi_fasta)[0]
+    folder = osPath(odgi_fasta).parent
+    os.makedirs(folder, exist_ok=True)
+    for part in partitions:
+        x = part.bin_width
+        fa_first, fa_last = (part.first_bin * x), ((part.last_bin + 1) * x)
+        header = f"first_bin: {part.first_bin} " + f"last_bin: {part.last_bin}"
+        chunk = [Contig(header, fasta.seq[fa_first:fa_last])]
+        c = folder.joinpath(part.fasta_filename)
+        write_contigs_to_file(c, chunk)
 
 
 def get_arguments():
@@ -295,6 +313,8 @@ def main():
     schematic = segment_matrix(paths, bin_width, args.cells_per_file, pangenome_length)
     del paths
     write_json_files(args.output_folder, schematic)
+    data = 'data/E coli K-12 str. mg1655 GCF_000005845.2_ASM584v2_genomic.fa'
+    write_fasta_files(data, schematic)
 
 
 if __name__ == '__main__':
