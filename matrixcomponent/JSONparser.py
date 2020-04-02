@@ -5,6 +5,7 @@ from matrixcomponent import ODGI_VERSION
 
 LOGGER = logging.getLogger(__name__)
 
+
 def parse(file):
         data = []
         with open(file) as f:
