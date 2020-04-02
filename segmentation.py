@@ -213,10 +213,10 @@ def setup_logging():
         log_name = osPath(args.output_folder).joinpath('log')
         os.makedirs(args.output_folder, exist_ok=True)
     t = datetime.now()
-    timestr = f"{t.year}{t.month:02}{t.day:02}-{t.hour:02}:{t.minute:02}:{t.second:02}"
-    log_name = str(log_name) + '.' + timestr
+    timestr = f"{t.year}{t.month:02}{t.day:02}-{t.hour:02}-{t.minute:02}-{t.second:02}"
+    log_name = str(log_name) + '.' + timestr + '.log'
     
-    handler = logging.FileHandler(log_name)
+    handler = logging.FileHandler(os.path.join(log_name))
     handler.setLevel(args.log_level)
     handler.setFormatter(logging.Formatter(matrixcomponent.LOGGING_FORMAT_STR,
                                            datefmt=matrixcomponent.LOGGING_DATE_FORMAT))
