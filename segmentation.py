@@ -258,7 +258,7 @@ def write_fasta_files(odgi_fasta, schematic: PangenomeSchematic):
     os.makedirs(folder, exist_ok=True)
     for part in partitions:
         x = part.bin_width
-        fa_first, fa_last = (part.first_bin * x), (((part.last_bin + 1) * x) - 1)  # accounts for 99 bp in last bin
+        fa_first, fa_last = (part.first_bin * x), ((part.last_bin + 1) * x)
         header = f"first_bin: {part.first_bin} " + f"last_bin: {part.last_bin}"
         chunk = [Contig(header, fasta.seq[fa_first:fa_last])]
         c = folder.joinpath(part.fasta_filename)
