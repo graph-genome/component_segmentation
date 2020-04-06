@@ -11,6 +11,8 @@ class Path:
     links: 'List[Path.LinkEntry]'
     bins: 'List[Path.Bin]'
 
+    numpy_links: 'numpy.array'
+
     def __init__(self, name=''):
         self.name = name
         self.bins = []  # Bin

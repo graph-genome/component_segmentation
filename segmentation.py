@@ -160,7 +160,7 @@ def find_dividers(matrix: List[Path]) -> Tuple[pd.DataFrame, Set[int]]:
     connection_dfs = []  # pandas dataframe with columns (from, to, path [name])
 
     for i, path in enumerate(matrix):
-        links = utils.numpy_links(path.links)
+        links = path.numpy_links
         bin_ids = np.array([b.bin_id for b in path.bins])
         bin_ids.sort()
 

@@ -3,17 +3,10 @@ import numpy as np
 
 from matrixcomponent.matrix import Path
 from matrixcomponent.utils import (
-    numpy_links,
     path_boundaries,
     self_loops,
     path_dividers
 )
-
-def test_numpy_links():
-    links = numpy_links([Path.LinkEntry(1, 2)])
-    assert links.shape == (1, 2)
-    assert links[0, 0] == 1
-    assert links[0, 1] == 2
 
 
 def test_path_boundaries():
