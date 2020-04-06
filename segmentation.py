@@ -26,6 +26,7 @@ import matrixcomponent
 import matrixcomponent.JSONparser as JSONparser
 
 import numpy as np
+import pandas as pd
 
 MAX_COMPONENT_SIZE = 100  # automatic calculation from cells_per_file did not go well
 LOGGER = logging.getLogger(__name__)
@@ -65,7 +66,7 @@ def segment_matrix(matrix: List[Path], bin_width, cells_per_file, pangenome_leng
                                    1,
                                    1,
                                    [], [p.name for p in matrix], 1, pangenome_length)
-    incoming, outgoing, dividers = dividers_with_max_size(matrix, cells_per_file)
+    connections, dividers = dividers_with_max_size(matrix, cells_per_file)
     start_pos = 0
     for valid_start in dividers:
         if valid_start != 0:
@@ -77,6 +78,12 @@ def segment_matrix(matrix: List[Path], bin_width, cells_per_file, pangenome_leng
 
     # populate Component occupancy per Path
     populate_component_matrix(matrix, schematic)
+
+    incoming = nested_dict(2, set)
+    outgoing = nested_dict(2, set)
+    for f, t, p in connections.itertuples(index=False):
+        incoming[t][f].add(p)
+        outgoing[f][t].add(p)
 
     # populate all link columns onto schematic
     nLinkColumns = 0
@@ -111,7 +118,7 @@ def segment_matrix(matrix: List[Path], bin_width, cells_per_file, pangenome_leng
 def dividers_with_max_size(matrix: List[Path], cells_per_file: int):
     """Adds in additional dividers to ensure very large components are split into
     multiple components with no Links."""
-    incoming, outgoing, dividers = find_dividers(matrix)
+    connections, dividers = find_dividers(matrix)
     # estimate number of paths, x10 because most paths are empty
     dividers_extended = []
     prev = 0
@@ -123,7 +130,7 @@ def dividers_with_max_size(matrix: List[Path], cells_per_file: int):
         prev = div
         dividers_extended.append(div)
 
-    return incoming, outgoing, dividers_extended
+    return connections, dividers_extended
 
 
 def add_adjacent_connector_column(component, next_component, schematic):
@@ -146,15 +153,11 @@ def add_adjacent_connector_column(component, next_component, schematic):
         participants=adjacents))
 
 
-def find_dividers(matrix: List[Path]) -> Tuple[Dict[int, Dict[int, set]],
-                                               Dict[int, Dict[int, set]], Set[int]]:
+def find_dividers(matrix: List[Path]) -> Tuple[pd.DataFrame, Set[int]]:
     max_bin = 1
-    leaving = nested_dict(2, set)  # containing the set of participating Paths on that link column
-    entering = nested_dict(2, set)  # list of indices of new components
-    dividers = {1}  # all start positions of components, start with st
 
     self_loops = []  # track self loops just in case component gets cut in half
-    uniq_links = set()
+    connection_dfs = []  # pandas dataframe with columns (from, to, path [name])
 
     for i, path in enumerate(matrix):
         links = utils.numpy_links(path.links)
@@ -177,39 +180,48 @@ def find_dividers(matrix: List[Path]) -> Tuple[Dict[int, Dict[int, set]],
         if path_dividers.size == 0:
             continue
 
-        for d in path_dividers:
-            upstream, downstream = int(d[0]), int(d[1])
-            if downstream >= upstream:
-                uniq_links.add((upstream, downstream))
+        df = pd.DataFrame.from_dict({
+            'from': path_dividers[:, 0],  # aka upstream
+            'to': path_dividers[:, 1],    # aka downstream
+            'path': path.name
+        })
 
-            leaving[upstream][downstream].add(path.name)  # the first position of the new component
-            entering[downstream][upstream].add(path.name)
+        connection_dfs.append(df)
 
-            dividers.add(upstream + 1)
-            dividers.add(downstream)
+        # <old comments applicable to each divider>
+        #
+        # if (upstream + 1) in leaving.keys() :
+        #     print(f"Found inherited rearrangement {upstream+1}")
+        #
+        # TODO: insert prevarications about exact position
+        # Divider should be somewhere in here
+        # Tolerable range?
+        # Stack up others using the same LinkColumn
 
-            # if (upstream + 1) in leaving.keys() :
-            #     print(f"Found inherited rearrangement {upstream+1}")
-            #
-            # TODO: insert prevarications about exact position
-            # Divider should be somewhere in here
-            # Tolerable range?
-            # Stack up others using the same LinkColumn
+    df = pd.concat(connection_dfs)
+    df.drop_duplicates(inplace=True)
+
+    # all start positions of components
+    dividers = set(df["from"] + 1) | set(df["to"])
+    dividers.add(1)
 
     print(f"Largest bin_id was {max_bin}\n"
           f"Found {len(dividers)} dividers.")
     dividers.add(max_bin + 1)  # end of pangenome
 
     if self_loops:
-        self_loops_num = np.unique(np.concatenate(self_loops), axis=0).shape[0]
-        print(f"Eliminated {self_loops_num} self-loops")
+        n_self_loops = np.unique(np.concatenate(self_loops), axis=0).shape[0]
+        print(f"Eliminated {n_self_loops} self-loops")
+
+    n_uniq_links = df[df["to"] >= df["from"]]\
+        .drop(columns=["path"]).drop_duplicates().shape[0]
 
     n_links = sum([len(p.links) for p in matrix])
     print(f"Input has {n_links} listed Links.  "
-          f"Segmentation eliminated {(1-len(uniq_links)/n_links)*100}% of them.")
-    print(f"Found {len(uniq_links)} unique links")
+          f"Segmentation eliminated {(1-n_uniq_links/n_links)*100}% of them.")
+    print(f"Found {n_uniq_links} unique links")
 
-    return entering, leaving, dividers
+    return df, dividers
 
 
 def discard_useless_links(matrix: List[Path]):
