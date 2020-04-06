@@ -35,10 +35,7 @@ def parse(file):
                     p.bins.append(p.Bin(b[0], b[1], b[2], b[4], b[5]))
                 p.finalize_bins()
 
-                for l in path['links']:
-                    p.links.append(p.LinkEntry(l[0], l[1]))
-
-                p.numpy_links = np.array(path['links'])
+                p.links = np.array(path['links'])
 
                 paths.append(p)
 

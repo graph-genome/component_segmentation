@@ -8,15 +8,12 @@ from typing import List
 
 class Path:
     name: str
-    links: 'List[Path.LinkEntry]'
     bins: 'List[Path.Bin]'
-
-    numpy_links: 'numpy.array'
+    links: 'numpy.array'
 
     def __init__(self, name=''):
         self.name = name
         self.bins = []  # Bin
-        self.links = []  # LinkEntry
         self._bin_set = set()
 
     @dataclass
