@@ -9,14 +9,15 @@ LOGGER = logging.getLogger(__name__)
 
 
 def parse(file):
-        data = []
-        with open(file) as f:
-            for line in f:
-                data.append(json.loads(line))
+    data = []
 
-        paths = []
-        pangenome_length = 0
-        for path in data:
+    paths = []
+    pangenome_length = 0
+
+    with open(file) as f:
+        for line in f:
+            path = json.loads(line)
+
             if "odgi_version" in path:
                 # this is the header
                 assert path["odgi_version"] == ODGI_VERSION, f"Expecting version {ODGI_VERSION}." \
@@ -41,4 +42,4 @@ def parse(file):
 
                 paths.append(p)
 
-        return(paths, pangenome_length, bin_width)
+    return (paths, pangenome_length, bin_width)
