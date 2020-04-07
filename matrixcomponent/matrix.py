@@ -3,19 +3,17 @@
 from dataclasses import dataclass
 from typing import List
 
-
 ## Path is all for input files
 
 
 class Path:
     name: str
-    links: 'List[Path.LinkEntry]'
     bins: 'List[Path.Bin]'
+    links: 'numpy.array'
 
     def __init__(self, name=''):
         self.name = name
         self.bins = []  # Bin
-        self.links = []  # LinkEntry
         self._bin_set = set()
 
     @dataclass
@@ -81,4 +79,3 @@ class Component:
         """Used to estimate JSON size.  LinkColumns are counted twice because they have a
         participants boolean list."""
         return 2*(len(self.arrivals) + len(self.departures)) + self.last_bin - self.first_bin
-
