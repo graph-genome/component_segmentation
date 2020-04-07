@@ -14,4 +14,3 @@ Ggfapy etc. does not have an anaconda package, so it's necessary to use pip:
 
 #### Example Run Configuration
 Parameters: `--json-file=data/run1.B1phi1.i1.seqwish.w100.json --out-folder=data/ --cells-per-file=5000`  
-In the terminal, run: `export PYTHONPATH=$PYTHONPATH:/home/ubuntu/software/component_segmentation/matrixcomponent` but replace with the path to your matrixcomponent directory.  This solves [ModuleNotFoundError #13](https://github.com/graph-genome/component_segmentation/issues/13).
