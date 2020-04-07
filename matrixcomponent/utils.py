@@ -1,6 +1,7 @@
 """ Utility functions """
 
 import numpy as np
+import pandas as pd
 
 
 def path_boundaries(links: np.array) -> np.array:
@@ -34,3 +35,67 @@ def path_dividers(links: np.array, bin_ids: np.array) -> np.array:
     mask[~mask] = indices[:, 1] > indices[:, 0]
 
     return mask
+
+
+# warning: this function is intended to be numba-compatible
+def _split_numpy_arr(arr):
+    groups = []
+    src, dst = arr[0]
+    group_start = 0
+
+    for i in range(arr.shape[0]):
+        item = arr[i]
+        if item[0] != src or item[1] != dst:
+            groups.append((group_start, i))
+            group_start = i
+            src, dst = item
+
+    # add last group
+    groups.append((group_start, arr.shape[0]))
+    return groups
+
+try:
+    # provides ~7x speedup on large tables
+    from numba import jit
+    _split_numpy_arr = jit(_split_numpy_arr)
+except ImportError:
+    pass
+
+
+def find_groups(data: np.array) -> 'List[(int, int)]':
+    '''
+    Returns:
+      list of [start, end) indices such that for each item data[start:end] has constant value
+    Args:
+      data(np.array): [N x 2] array of data; in context of segmentation each row is (upstream, downstream)
+    '''
+    if data.size == 0:
+        return []
+
+    return _split_numpy_arr(data)
+
+
+def sort_and_drop_duplicates(connections: 'pd.DataFrame', shift=21) -> 'pd.DataFrame':
+    '''
+    returns connections sorted by ["from", "to", "path_index"] without duplicate entries;
+    see find_dividers in segmentation.py
+    '''
+    mask = (1 << shift) - 1
+
+    if np.any(connections.max() > mask):
+        # nigh impossible with the default limit: (1 << 21) = 2M bins / paths;
+        # as such, this line of code is mostly for illustration purposes
+        return connections.drop_duplicates().sort_values(by=["from", "to", "path_index"])
+
+    # the columns are assumed to be (from, to, path_index)
+    array = connections.to_numpy()
+
+    # compress all columns into a single 64-bit integer
+    compressed = (array[:, 0] << (2 * shift)) + (array[:, 1] << shift) + array[:, 2]
+    compressed_no_dups = np.unique(compressed)
+
+    return pd.DataFrame.from_dict({
+        'from': compressed_no_dups >> (2 * shift),
+        'to': (compressed_no_dups >> shift) & mask,
+        'path_index': compressed_no_dups & mask,
+    })
