@@ -3,7 +3,8 @@ import numpy as np
 from matrixcomponent.utils import (
     path_boundaries,
     self_loops,
-    path_dividers
+    path_dividers,
+    find_groups
 )
 
 
@@ -38,3 +39,18 @@ def test_path_dividers():
     ])
     assert np.array_equal(links[path_dividers(links, bins)],
                           [[3, 1], [3, 5], [5, 9], [4, 1]])
+
+
+def test_find_groups():
+    data = np.array([
+        [1, 2], [1, 2], [1, 3],
+        [2, 1], [2, 1], [2, 1], [2, 2],
+        [3, 3], [3, 3], [3, 4], [3, 4], [3, 5]
+    ])
+    assert np.array_equal(find_groups(data),
+                          [(0, 2), (2, 3),
+                           (3, 6), (6, 7),
+                           (7, 9), (9, 11), (11, 12)])
+
+    assert np.array_equal(find_groups(np.array([[]])), [])
+    assert np.array_equal(find_groups(np.array([[1, 2]])), [(0, 1)])

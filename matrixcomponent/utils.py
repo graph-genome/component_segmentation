@@ -34,3 +34,41 @@ def path_dividers(links: np.array, bin_ids: np.array) -> np.array:
     mask[~mask] = indices[:, 1] > indices[:, 0]
 
     return mask
+
+
+# warning: this function is intended to be numba-compatible
+def _split_numpy_arr(arr):
+    groups = []
+    src, dst = arr[0]
+    group_start = 0
+
+    for i in range(arr.shape[0]):
+        item = arr[i]
+        if item[0] != src or item[1] != dst:
+            groups.append((group_start, i))
+            group_start = i
+            src, dst = item
+
+    # add last group
+    groups.append((group_start, arr.shape[0]))
+    return groups
+
+try:
+    # provides ~7x speedup on large tables
+    from numba import jit
+    _split_numpy_arr = jit(_split_numpy_arr)
+except ImportError:
+    pass
+
+
+def find_groups(data: np.array) -> 'List[(int, int)]':
+    '''
+    Returns:
+      list of [start, end) indices such that for each item data[start:end] has constant value
+    Args:
+      data(np.array): [N x 2] array of data; in context of segmentation each row is (upstream, downstream)
+    '''
+    if data.size == 0:
+        return []
+
+    return _split_numpy_arr(data)
