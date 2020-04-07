@@ -11,7 +11,7 @@ from typing import List, Tuple, Set, Dict
 from pathlib import Path as osPath, PurePath
 from nested_dict import nested_dict
 from datetime import datetime
-
+from sortedcontainers import SortedDict
 from DNASkittleUtils.Contigs import Contig, read_contigs, write_contigs_to_file
 
 from matrixcomponent.matrix import Path, Component, LinkColumn, Bin
@@ -38,11 +38,15 @@ def populate_component_occupancy(schematic: PangenomeSchematic):
 
 
 def populate_component_matrix(paths: List[Path], schematic: PangenomeSchematic):
-    for component in schematic.components:
-        # paths paths are in the same order as schematic.path_names
-        for i, path in enumerate(paths):
-            relevant = [bin for bin in path.bins if
-                        component.first_bin <= bin.bin_id <= component.last_bin]  # very costly loop
+    # the loops are 1) paths, and then 2) schematic.components
+    # paths are in the same order as schematic.path_names
+    for i, path in enumerate(paths):
+        sorted_bins = SortedDict((bin.bin_id, bin) for bin in path.bins)
+        values = list(sorted_bins.values())
+        for component in schematic.components:
+            from_id = sorted_bins.bisect_left (component.first_bin)
+            to_id   = sorted_bins.bisect_right(component.last_bin)
+            relevant = values[from_id:to_id]
             padded = []
             if relevant:
                 padded = [[]] * (component.last_bin - component.first_bin + 1)
