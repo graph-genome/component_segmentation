@@ -3,18 +3,19 @@ import logging
 import matrixcomponent.matrix as matrix
 from matrixcomponent import ODGI_VERSION
 
+import numpy as np
+
 LOGGER = logging.getLogger(__name__)
 
 
 def parse(file):
-        data = []
-        with open(file) as f:
-            for line in f:
-                data.append(json.loads(line))
+    paths = []
+    pangenome_length = 0
 
-        paths = []
-        pangenome_length = 0
-        for path in data:
+    with open(file) as f:
+        for line in f:
+            path = json.loads(line)
+
             if "odgi_version" in path:
                 # this is the header
                 assert path["odgi_version"] == ODGI_VERSION, f"Expecting version {ODGI_VERSION}." \
@@ -31,11 +32,9 @@ def parse(file):
                 for b in path['bins']:
                     p.bins.append(p.Bin(b[0], b[1], b[2], b[4], b[5]))
                 p.finalize_bins()
-                
-                for l in path['links']:
-                    p.links.append(p.LinkEntry(l[0], l[1]))
+
+                p.links = np.array(path['links'])
 
                 paths.append(p)
 
-        return(paths, pangenome_length, bin_width)
-
+    return (paths, pangenome_length, bin_width)
