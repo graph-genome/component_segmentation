@@ -9,8 +9,6 @@ LOGGER = logging.getLogger(__name__)
 
 
 def parse(file):
-    data = []
-
     paths = []
     pangenome_length = 0
 

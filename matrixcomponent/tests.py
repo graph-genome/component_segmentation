@@ -1,7 +1,5 @@
-import pytest
 import numpy as np
 
-from matrixcomponent.matrix import Path
 from matrixcomponent.utils import (
     path_boundaries,
     self_loops,
