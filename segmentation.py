@@ -9,7 +9,6 @@ Output format
 """
 from typing import List, Tuple, Set, Dict
 from pathlib import Path as osPath, PurePath
-from nested_dict import nested_dict
 from datetime import datetime
 from sortedcontainers import SortedDict
 from DNASkittleUtils.Contigs import Contig, read_contigs, write_contigs_to_file
@@ -71,43 +70,44 @@ def segment_matrix(matrix: List[Path], bin_width, cells_per_file, pangenome_leng
                                    1,
                                    [], [p.name for p in matrix], 1, pangenome_length)
     connections, dividers = dividers_with_max_size(matrix, cells_per_file)
+
+    component_by_first_bin = {}
+    component_by_last_bin = {}
     start_pos = 0
     for valid_start in dividers:
         if valid_start != 0:
             current = Component(start_pos, valid_start - 1)
             # current.active_members = 1
             schematic.components.append(current)
+            component_by_first_bin[start_pos] = current
+            component_by_last_bin[valid_start - 1] = current
         start_pos = valid_start
     print(f"Created {len(schematic.components)} components")
 
     # populate Component occupancy per Path
     populate_component_matrix(matrix, schematic)
 
-    incoming = nested_dict(2, set)
-    outgoing = nested_dict(2, set)
-    for f, t, p in connections.itertuples(index=False):
-        incoming[t][f].add(p)
-        outgoing[f][t].add(p)
-
-    # populate all link columns onto schematic
     nLinkColumns = 0
-    for component in schematic.components:
-        # TODO: order columns based on traversal patterns,
-        # TODO: insert additional columns for higher copy number
-        for origin_pos, participants in incoming[component.first_bin].items():
-            phase_dots = [indiv in participants for indiv in schematic.path_names]
-            entering = LinkColumn(origin_pos,
-                                  component.first_bin,
-                                  participants=phase_dots)
-            component.arrivals.append(entering)
+    connections.sort_values(by=["from", "to"], inplace=True)
+    groups = utils.find_groups(connections.to_numpy()[:, :2])
+    path_indices = connections.path_index.to_numpy()
+    for (start, end) in groups:
+        src, dst = connections.iloc[start, 0:2]
+
+        mask = np.zeros_like(schematic.path_names, dtype=bool)
+        mask[path_indices[start:end]] = True
+        phase_dots = mask.tolist()
+        link_column = LinkColumn(src, dst, participants=phase_dots)
+
+        src_component = component_by_last_bin.get(int(src))
+        dst_component = component_by_first_bin.get(int(dst))
+
+        if src_component:
+            src_component.departures.append(link_column)
             nLinkColumns += 1
-        for arriving_pos, participants in outgoing[component.last_bin].items():
-            # phase_dots depends on row ordering of path names, optimized for display
-            phase_dots = [indiv in participants for indiv in schematic.path_names]
-            leaving = LinkColumn(component.last_bin,
-                                 arriving_pos,
-                                 participants=phase_dots)
-            component.departures.append(leaving)
+
+        if dst_component:
+            dst_component.arrivals.append(link_column)
             nLinkColumns += 1
 
     for i in range(len(schematic.components)-1):
@@ -188,7 +188,7 @@ def find_dividers(matrix: List[Path]) -> Tuple[pd.DataFrame, Set[int]]:
         df = pd.DataFrame.from_dict({
             'from': path_dividers[:, 0],  # aka upstream
             'to': path_dividers[:, 1],    # aka downstream
-            'path': path.name
+            'path_index': i
         })
 
         connection_dfs.append(df)
@@ -219,7 +219,7 @@ def find_dividers(matrix: List[Path]) -> Tuple[pd.DataFrame, Set[int]]:
         print(f"Eliminated {n_self_loops} self-loops")
 
     n_uniq_links = df[df["to"] >= df["from"]]\
-        .drop(columns=["path"]).drop_duplicates().shape[0]
+        .drop(columns=["path_index"]).drop_duplicates().shape[0]
 
     n_links = sum([len(p.links) for p in matrix])
     print(f"Input has {n_links} listed Links.  "
