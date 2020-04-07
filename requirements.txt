@@ -6,3 +6,4 @@ DNASkittleUtils==1.0.13
 numpy==1.18.2
 pandas==1.0.3
 pytest==5.4.1
+sortedcontainers==2.1.0
