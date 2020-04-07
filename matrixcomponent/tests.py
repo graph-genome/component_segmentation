@@ -26,7 +26,7 @@ def test_path_dividers():
 
     # test the simple case separately
     links = np.array([[3, 1], [4, 1]])
-    assert np.array_equal(path_dividers(links, bins), links)
+    assert np.array_equal(links[path_dividers(links, bins)], links)
 
     # test the general case
     links = np.array([
@@ -38,5 +38,5 @@ def test_path_dividers():
         [3, 4],  # empty bin range [3 + 1, 4) => no
         [4, 1],  # u > d => yes
     ])
-    assert np.array_equal(path_dividers(links, bins),
+    assert np.array_equal(links[path_dividers(links, bins)],
                           [[3, 1], [3, 5], [5, 9], [4, 1]])

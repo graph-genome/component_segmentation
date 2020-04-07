@@ -17,7 +17,7 @@ def self_loops(links: np.array) -> np.array:
 def path_dividers(links: np.array, bin_ids: np.array) -> np.array:
     '''
     Returns:
-      subarray of links that are considered dividers
+      boolean mask of links that are considered dividers
     Args:
       links(np.array) - array of path links
       bin_ids(np.array) - sorted array of path bin ids
@@ -33,4 +33,4 @@ def path_dividers(links: np.array, bin_ids: np.array) -> np.array:
     # maintain the original order just in case
     mask[~mask] = indices[:, 1] > indices[:, 0]
 
-    return links[mask]
+    return mask

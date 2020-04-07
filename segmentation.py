@@ -176,7 +176,8 @@ def find_dividers(matrix: List[Path]) -> Tuple[pd.DataFrame, Set[int]]:
 
         links = links[~(boundary_mask | self_loops_mask)]
 
-        path_dividers = utils.path_dividers(links, bin_ids)
+        path_dividers_mask = utils.path_dividers(links, bin_ids)
+        path_dividers = links[path_dividers_mask]
         if path_dividers.size == 0:
             continue
 
