@@ -87,20 +87,25 @@ def segment_matrix(matrix: List[Path], bin_width, cells_per_file, pangenome_leng
     # populate Component occupancy per Path
     populate_component_matrix(matrix, schematic)
 
-    nLinkColumns = 0
     connections.sort_values(by=["from", "to"], inplace=True)
-    groups = utils.find_groups(connections.to_numpy()[:, :2])
+    connections_array = connections.to_numpy()
+    groups = utils.find_groups(connections_array[:, :2])
     path_indices = connections.path_index.to_numpy()
-    for (start, end) in groups:
-        src, dst = connections.iloc[start, 0:2]
 
-        mask = np.zeros_like(schematic.path_names, dtype=bool)
-        mask[path_indices[start:end]] = True
-        phase_dots = mask.tolist()
+    participants_mask = np.zeros(len(schematic.path_names), dtype=bool)
+
+    nLinkColumns = 0
+    for (start, end) in groups:
+        row = connections_array[start]
+        src, dst = int(row[0]), int(row[1])
+
+        participants_mask[:] = False
+        participants_mask[path_indices[start:end]] = True
+        phase_dots = participants_mask.tolist()
         link_column = LinkColumn(src, dst, participants=phase_dots)
 
-        src_component = component_by_last_bin.get(int(src))
-        dst_component = component_by_first_bin.get(int(dst))
+        src_component = component_by_last_bin.get(src)
+        dst_component = component_by_first_bin.get(dst)
 
         if src_component:
             src_component.departures.append(link_column)
@@ -126,7 +131,7 @@ def dividers_with_max_size(matrix: List[Path], cells_per_file: int):
     # estimate number of paths, x10 because most paths are empty
     dividers_extended = []
     prev = 0
-    for div in sorted(list(dividers)):
+    for div in dividers:
         gap_size = div - prev
         if gap_size > MAX_COMPONENT_SIZE:
             for i in range(prev + MAX_COMPONENT_SIZE, div, MAX_COMPONENT_SIZE):
@@ -207,12 +212,12 @@ def find_dividers(matrix: List[Path]) -> Tuple[pd.DataFrame, Set[int]]:
     df.drop_duplicates(inplace=True)
 
     # all start positions of components
-    dividers = set(df["from"] + 1) | set(df["to"])
-    dividers.add(1)
+    # (max_bin + 1) is end of pangenome
+    dividers = np.concatenate([[1, max_bin + 1], df["from"] + 1, df["to"]])
+    dividers = np.unique(dividers).tolist()
 
     print(f"Largest bin_id was {max_bin}\n"
           f"Found {len(dividers)} dividers.")
-    dividers.add(max_bin + 1)  # end of pangenome
 
     if self_loops:
         n_self_loops = np.unique(np.concatenate(self_loops), axis=0).shape[0]
