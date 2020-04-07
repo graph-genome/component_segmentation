@@ -1,10 +1,12 @@
 import numpy as np
+import pandas as pd
 
 from matrixcomponent.utils import (
+    find_groups,
     path_boundaries,
-    self_loops,
     path_dividers,
-    find_groups
+    self_loops,
+    sort_and_drop_duplicates,
 )
 
 
@@ -54,3 +56,20 @@ def test_find_groups():
 
     assert np.array_equal(find_groups(np.array([[]])), [])
     assert np.array_equal(find_groups(np.array([[1, 2]])), [(0, 1)])
+
+
+def test_sort_and_drop_duplicates():
+    df = pd.DataFrame.from_dict({
+        "from":       [1, 3, 2, 3, 2, 0, 5, 4, 1, 2],
+        "to":         [2, 2, 4, 2, 3, 1, 4, 3, 2, 3],
+        "path_index": [0, 3, 1, 2, 2, 3, 2, 1, 3, 2],
+    })
+
+    expected = pd.DataFrame.from_dict({
+        "from":       [0, 1, 1, 2, 2, 3, 3, 4, 5],
+        "to":         [1, 2, 2, 3, 4, 2, 2, 3, 4],
+        "path_index": [3, 0, 3, 2, 1, 2, 3, 1, 2],
+    })  # only one duplicate (2, 3, 2)
+
+    assert np.array_equal(sort_and_drop_duplicates(df).to_numpy(),
+                          expected.to_numpy())

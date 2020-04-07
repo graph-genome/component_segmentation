@@ -1,6 +1,7 @@
 """ Utility functions """
 
 import numpy as np
+import pandas as pd
 
 
 def path_boundaries(links: np.array) -> np.array:
@@ -72,3 +73,29 @@ def find_groups(data: np.array) -> 'List[(int, int)]':
         return []
 
     return _split_numpy_arr(data)
+
+
+def sort_and_drop_duplicates(connections: 'pd.DataFrame', shift=21) -> 'pd.DataFrame':
+    '''
+    returns connections sorted by ["from", "to", "path_index"] without duplicate entries;
+    see find_dividers in segmentation.py
+    '''
+    mask = (1 << shift) - 1
+
+    if np.any(connections.max() > mask):
+        # nigh impossible with the default limit: (1 << 21) = 2M bins / paths;
+        # as such, this line of code is mostly for illustration purposes
+        return connections.drop_duplicates().sort_values(by=["from", "to", "path_index"])
+
+    # the columns are assumed to be (from, to, path_index)
+    array = connections.to_numpy()
+
+    # compress all columns into a single 64-bit integer
+    compressed = (array[:, 0] << (2 * shift)) + (array[:, 1] << shift) + array[:, 2]
+    compressed_no_dups = np.unique(compressed)
+
+    return pd.DataFrame.from_dict({
+        'from': compressed_no_dups >> (2 * shift),
+        'to': (compressed_no_dups >> shift) & mask,
+        'path_index': compressed_no_dups & mask,
+    })

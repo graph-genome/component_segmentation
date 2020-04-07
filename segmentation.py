@@ -87,7 +87,6 @@ def segment_matrix(matrix: List[Path], bin_width, cells_per_file, pangenome_leng
     # populate Component occupancy per Path
     populate_component_matrix(matrix, schematic)
 
-    connections.sort_values(by=["from", "to"], inplace=True)
     connections_array = connections.to_numpy()
     groups = utils.find_groups(connections_array[:, :2])
     path_indices = connections.path_index.to_numpy()
@@ -209,7 +208,7 @@ def find_dividers(matrix: List[Path]) -> Tuple[pd.DataFrame, Set[int]]:
         # Stack up others using the same LinkColumn
 
     df = pd.concat(connection_dfs)
-    df.drop_duplicates(inplace=True)
+    df = utils.sort_and_drop_duplicates(df)
 
     # all start positions of components
     # (max_bin + 1) is end of pangenome
