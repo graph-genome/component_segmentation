@@ -41,12 +41,12 @@ def populate_component_matrix(paths: List[Path], schematic: PangenomeSchematic):
     # the loops are 1) paths, and then 2) schematic.components
     # paths are in the same order as schematic.path_names
     for i, path in enumerate(paths):
-        sortedBins = SortedDict((bin.bin_id, bin) for bin in path.bins)
-        values = list(sortedBins.values())
+        sorted_bins = SortedDict((bin.bin_id, bin) for bin in path.bins)
+        values = list(sorted_bins.values())
         for component in schematic.components:
-            fromId = sortedBins.bisect_left (component.first_bin)
-            toId   = sortedBins.bisect_right(component.last_bin)
-            relevant = values[fromId:toId]
+            from_id = sorted_bins.bisect_left (component.first_bin)
+            to_id   = sorted_bins.bisect_right(component.last_bin)
+            relevant = values[from_id:to_id]
             padded = []
             if relevant:
                 padded = [[]] * (component.last_bin - component.first_bin + 1)
