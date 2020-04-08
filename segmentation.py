@@ -9,7 +9,6 @@ Output format
 """
 from typing import List, Tuple, Set, Dict
 from pathlib import Path as osPath, PurePath
-from nested_dict import nested_dict
 from datetime import datetime
 from sortedcontainers import SortedDict
 from DNASkittleUtils.Contigs import Contig, read_contigs, write_contigs_to_file
@@ -71,43 +70,48 @@ def segment_matrix(matrix: List[Path], bin_width, cells_per_file, pangenome_leng
                                    1,
                                    [], [p.name for p in matrix], 1, pangenome_length)
     connections, dividers = dividers_with_max_size(matrix, cells_per_file)
+
+    component_by_first_bin = {}
+    component_by_last_bin = {}
     start_pos = 0
     for valid_start in dividers:
         if valid_start != 0:
             current = Component(start_pos, valid_start - 1)
             # current.active_members = 1
             schematic.components.append(current)
+            component_by_first_bin[start_pos] = current
+            component_by_last_bin[valid_start - 1] = current
         start_pos = valid_start
     print(f"Created {len(schematic.components)} components")
 
     # populate Component occupancy per Path
     populate_component_matrix(matrix, schematic)
 
-    incoming = nested_dict(2, set)
-    outgoing = nested_dict(2, set)
-    for f, t, p in connections.itertuples(index=False):
-        incoming[t][f].add(p)
-        outgoing[f][t].add(p)
+    connections_array = connections.to_numpy()
+    groups = utils.find_groups(connections_array[:, :2])
+    path_indices = connections.path_index.to_numpy()
 
-    # populate all link columns onto schematic
+    participants_mask = np.zeros(len(schematic.path_names), dtype=bool)
+
     nLinkColumns = 0
-    for component in schematic.components:
-        # TODO: order columns based on traversal patterns,
-        # TODO: insert additional columns for higher copy number
-        for origin_pos, participants in incoming[component.first_bin].items():
-            phase_dots = [indiv in participants for indiv in schematic.path_names]
-            entering = LinkColumn(origin_pos,
-                                  component.first_bin,
-                                  participants=phase_dots)
-            component.arrivals.append(entering)
+    for (start, end) in groups:
+        row = connections_array[start]
+        src, dst = int(row[0]), int(row[1])
+
+        participants_mask[:] = False
+        participants_mask[path_indices[start:end]] = True
+        phase_dots = participants_mask.tolist()
+        link_column = LinkColumn(src, dst, participants=phase_dots)
+
+        src_component = component_by_last_bin.get(src)
+        dst_component = component_by_first_bin.get(dst)
+
+        if src_component:
+            src_component.departures.append(link_column)
             nLinkColumns += 1
-        for arriving_pos, participants in outgoing[component.last_bin].items():
-            # phase_dots depends on row ordering of path names, optimized for display
-            phase_dots = [indiv in participants for indiv in schematic.path_names]
-            leaving = LinkColumn(component.last_bin,
-                                 arriving_pos,
-                                 participants=phase_dots)
-            component.departures.append(leaving)
+
+        if dst_component:
+            dst_component.arrivals.append(link_column)
             nLinkColumns += 1
 
     for i in range(len(schematic.components)-1):
@@ -126,7 +130,7 @@ def dividers_with_max_size(matrix: List[Path], cells_per_file: int):
     # estimate number of paths, x10 because most paths are empty
     dividers_extended = []
     prev = 0
-    for div in sorted(list(dividers)):
+    for div in dividers:
         gap_size = div - prev
         if gap_size > MAX_COMPONENT_SIZE:
             for i in range(prev + MAX_COMPONENT_SIZE, div, MAX_COMPONENT_SIZE):
@@ -188,7 +192,7 @@ def find_dividers(matrix: List[Path]) -> Tuple[pd.DataFrame, Set[int]]:
         df = pd.DataFrame.from_dict({
             'from': path_dividers[:, 0],  # aka upstream
             'to': path_dividers[:, 1],    # aka downstream
-            'path': path.name
+            'path_index': i
         })
 
         connection_dfs.append(df)
@@ -204,22 +208,22 @@ def find_dividers(matrix: List[Path]) -> Tuple[pd.DataFrame, Set[int]]:
         # Stack up others using the same LinkColumn
 
     df = pd.concat(connection_dfs)
-    df.drop_duplicates(inplace=True)
+    df = utils.sort_and_drop_duplicates(df)
 
     # all start positions of components
-    dividers = set(df["from"] + 1) | set(df["to"])
-    dividers.add(1)
+    # (max_bin + 1) is end of pangenome
+    dividers = np.concatenate([[1, max_bin + 1], df["from"] + 1, df["to"]])
+    dividers = np.unique(dividers).tolist()
 
     print(f"Largest bin_id was {max_bin}\n"
           f"Found {len(dividers)} dividers.")
-    dividers.add(max_bin + 1)  # end of pangenome
 
     if self_loops:
         n_self_loops = np.unique(np.concatenate(self_loops), axis=0).shape[0]
         print(f"Eliminated {n_self_loops} self-loops")
 
     n_uniq_links = df[df["to"] >= df["from"]]\
-        .drop(columns=["path"]).drop_duplicates().shape[0]
+        .drop(columns=["path_index"]).drop_duplicates().shape[0]
 
     n_links = sum([len(p.links) for p in matrix])
     print(f"Input has {n_links} listed Links.  "
