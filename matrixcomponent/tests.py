@@ -35,7 +35,7 @@ def test_path_dividers():
         [1, 3],  # no bins within [1 + 1, 3) range => no
         [3, 5],  # bin 4 is within [3 + 1, 5) range => yes
         [5, 9],  # bin 8 is within [5 + 1, 9) => yes
-        [5, 8],  # no bins within [5 + 1, 9) => yes
+        [5, 8],  # no bins within [5 + 1, 9) => no
         [3, 4],  # empty bin range [3 + 1, 4) => no
         [4, 1],  # u > d => yes
     ])
