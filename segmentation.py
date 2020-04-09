@@ -330,7 +330,7 @@ def get_arguments():
 
     parser.add_argument('-p', '--parallel-cores',
                         dest='parallel_cores',
-                        default=-1,
+                        default=os.cpu_count(),
                         type=int,
                         help='Tip: do not set this one to more than available CPU cores)')
 
@@ -341,6 +341,9 @@ def get_arguments():
     else:
         args.output_folder = osPath(args.output_folder)
     os.makedirs(args.output_folder, exist_ok=True)
+
+    if (args.parallel_cores <= 0):
+        args.parallel_cores = os.cpu_count()
 
     return args
 
