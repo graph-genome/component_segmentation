@@ -1,8 +1,8 @@
 import json
 import logging
 
-import ray
-from ray.thirdparty_files import psutil
+import os
+from joblib import Parallel, delayed
 
 import matrixcomponent.matrix as matrix
 from matrixcomponent import ODGI_VERSION
@@ -13,7 +13,6 @@ import numpy as np
 LOGGER = logging.getLogger(__name__)
 
 
-@ray.remote(num_return_vals=1)
 def process_path(line=None):
     pangenome_length = -1
     bin_width = -1
@@ -49,22 +48,15 @@ def parse(file):
     pangenome_length = 0
     bin_width = 0
 
-    chunk_size = psutil.cpu_count()
+    chunk_size = os.cpu_count()
 
-    ray.init()
-
-    with open(file) as f:
+    with open(file) as f, Parallel(n_jobs=chunk_size, prefer="processes") as parallel:
         while True:
             lines = list(islice(f, chunk_size))
             if len(lines) == 0:
                 break
 
-            results = []
-            for line in lines:
-                res = process_path.remote(line)
-                results.append(res)
-
-            results = ray.get(results)
+            results = parallel(delayed(process_path)(line) for line in lines)
             for res in results:
                 plen, bwidth, p = res[0], res[1], res[2]
                 if plen > -1:
