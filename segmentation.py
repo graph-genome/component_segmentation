@@ -328,6 +328,12 @@ def get_arguments():
                         choices=('DEBUG', 'INFO', 'WARNING', 'ERROR'),
                         help='level of logging verbosity. DEBUG is most verbose')
 
+    parser.add_argument('-p', '--parallel-cores',
+                        dest='parallel_cores',
+                        default=-1,
+                        type=int,
+                        help='Tip: do not set this one to more than available CPU cores)')
+
     args = parser.parse_args()
     if not args.output_folder:
         # directory with the same name as the json
@@ -344,7 +350,7 @@ def main():
     args = get_arguments()
     setup_logging()
     LOGGER.info(f'reading {osPath(args.json_file)}...\n')
-    paths, pangenome_length, bin_width = JSONparser.parse(args.json_file)
+    paths, pangenome_length, bin_width = JSONparser.parse(args.json_file, args.parallel_cores)
     schematic = segment_matrix(paths, bin_width, args.cells_per_file, pangenome_length)
     del paths
     write_json_files(args.output_folder, schematic)

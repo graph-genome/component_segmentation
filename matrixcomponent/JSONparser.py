@@ -43,12 +43,15 @@ def process_path(line=None):
     return [pangenome_length, bin_width, p]
 
 
-def parse(file):
+def parse(file, parallel_cores):
     paths = []
     pangenome_length = 0
     bin_width = 0
 
-    chunk_size = os.cpu_count()
+    if parallel_cores > 0:
+        chunk_size = parallel_cores
+    else:
+        chunk_size = os.cpu_count()
 
     with open(file) as f, Parallel(n_jobs=chunk_size, prefer="processes") as parallel:
         while True:
