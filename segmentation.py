@@ -367,3 +367,6 @@ if __name__ == '__main__':
     main()
 #--json-file=data/run1.B1phi1.i1.seqwish.w100.json --cells-per-file=5000
 # --fasta=data/run1.B1phi1.i1.seqwish.fasta
+
+# python segmentation.py -j data/run1.B1phi1.i1.seqwish.w1.json -f data/run1.B1phi1.i1.seqwish.fasta --cells-per-file 25000
+

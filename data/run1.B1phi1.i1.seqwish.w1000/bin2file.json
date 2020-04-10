@@ -1,0 +1,28 @@
+{
+    "bin_width": 1000,
+    "json_version": 12,
+    "last_bin": 53,
+    "pangenome_length": 52441,
+    "files": [
+        {
+            "file": "chunk0_bin1000.schematic.json",
+            "first_bin": 0,
+            "last_bin": 0
+        },
+        {
+            "file": "chunk1_bin1000.schematic.json",
+            "first_bin": 1,
+            "last_bin": 25
+        },
+        {
+            "file": "chunk2_bin1000.schematic.json",
+            "first_bin": 26,
+            "last_bin": 26
+        },
+        {
+            "file": "chunk3_bin1000.schematic.json",
+            "first_bin": 27,
+            "last_bin": 53
+        }
+    ]
+}
