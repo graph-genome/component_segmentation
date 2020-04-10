@@ -7,11 +7,11 @@ Component Segmentation Detection - Josiah and Joerg
   Python memory object model - Josiah
 Output format
 """
-from typing import List, Tuple, Set, Dict
-from pathlib import Path as osPath, PurePath
+from typing import List, Tuple, Set
+from pathlib import Path as osPath
 from datetime import datetime
 from sortedcontainers import SortedDict
-from DNASkittleUtils.Contigs import Contig, read_contigs, write_contigs_to_file
+from DNASkittleUtils.Contigs import read_contigs
 
 from matrixcomponent.matrix import Path, Component, LinkColumn, Bin
 from matrixcomponent.PangenomeSchematic import PangenomeSchematic
@@ -151,7 +151,7 @@ def add_adjacent_connector_column(component, next_component, schematic):
         connection_exists = False
         if component.occupants[row] and next_component.occupants[row]:  # occupant present
             # n_arrivals = sum([column.participants[row] for column in component.arrivals])
-            departed = sum([column.participants[row] for column in component.departures])
+            departed = any([column.participants[row] for column in component.departures]) # no need to compute sum
             # connection_exists = n_arrivals + 1 > departed
             connection_exists = not departed  # didn't depart
         adjacents.append(connection_exists)
@@ -197,6 +197,7 @@ def find_dividers(matrix: List[Path]) -> Tuple[pd.DataFrame, Set[int]]:
             'to': path_dividers[:, 1],    # aka downstream
             'path_index': i
         })
+        df = utils.sort_and_drop_duplicates(df) # early deduplication saves lots of runtime memory
 
         connection_dfs.append(df)
 
@@ -262,33 +263,16 @@ class SmartFormatter(argparse.HelpFormatter):
         return argparse.HelpFormatter._split_lines(self, text, width)
 
 
-def write_json_files(json_file, schematic: PangenomeSchematic):
-    partitions, bin2file_mapping = schematic.split(args.cells_per_file)
-
-    folder = osPath(json_file).parent
-    if args.output_folder:
-        folder = osPath(args.output_folder)
+def write_files(folder, odgi_fasta: Path, schematic: PangenomeSchematic):
     os.makedirs(folder, exist_ok=True)  # make directory for all files
 
-    for part in partitions:
-        p = folder.joinpath(part.filename)
-        with p.open('w') as fpgh9:
-            fpgh9.write(part.json_dump())
-        print("Saved results to", p)
+    fasta = None
+    if odgi_fasta:
+        fasta = read_contigs(odgi_fasta)[0]
+
+    bin2file_mapping = schematic.split_and_write(args.cells_per_file, folder, fasta)
 
     schematic.write_index_file(folder, bin2file_mapping)
-
-
-def write_fasta_files(odgi_fasta, output_folder: Path, schematic: PangenomeSchematic):
-    partitions, bin2file_mapping = schematic.split(args.cells_per_file)
-    fasta = read_contigs(odgi_fasta)[0]
-    for part in partitions:
-        x = part.bin_width
-        fa_first, fa_last = (part.first_bin * x), ((part.last_bin + 1) * x)
-        header = f"first_bin: {part.first_bin} " + f"last_bin: {part.last_bin}"
-        chunk = [Contig(header, fasta.seq[fa_first:fa_last])]
-        c = PurePath(output_folder).joinpath(part.fasta_filename)
-        write_contigs_to_file(c, chunk)
 
 
 def get_arguments():
@@ -359,9 +343,9 @@ def main():
     paths, pangenome_length, bin_width = JSONparser.parse(args.json_file, args.parallel_cores)
     schematic = segment_matrix(paths, bin_width, args.cells_per_file, pangenome_length)
     del paths
-    write_json_files(args.output_folder, schematic)
-    if args.fasta:  # optional
-        write_fasta_files(args.fasta, args.output_folder, schematic)
+
+    # this one spits out json and optionally other output files (fasta, ttl)
+    write_files(args.output_folder, args.fasta, schematic)
 
 
 if __name__ == '__main__':

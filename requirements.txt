@@ -7,3 +7,4 @@ pandas==1.0.3
 pytest==5.4.1
 sortedcontainers==2.1.0
 joblib==0.14.1
+numba==0.48.0
