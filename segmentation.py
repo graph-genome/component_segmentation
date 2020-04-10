@@ -167,6 +167,7 @@ def find_dividers(matrix: List[Path]) -> Tuple[pd.DataFrame, Set[int]]:
     self_loops = []  # track self loops just in case component gets cut in half
     connection_dfs = []  # pandas dataframe with columns (from, to, path [name])
 
+    n_remaining_links = 0
     for i, path in enumerate(matrix):
         bin_ids = np.array([b.bin_id for b in path.bins])
         bin_ids.sort()
@@ -197,6 +198,8 @@ def find_dividers(matrix: List[Path]) -> Tuple[pd.DataFrame, Set[int]]:
             'to': path_dividers[:, 1],    # aka downstream
             'path_index': i
         })
+
+        n_remaining_links = n_remaining_links + len(df)
         df = utils.sort_and_drop_duplicates(df) # early deduplication saves lots of runtime memory
 
         connection_dfs.append(df)
@@ -212,8 +215,6 @@ def find_dividers(matrix: List[Path]) -> Tuple[pd.DataFrame, Set[int]]:
         # Stack up others using the same LinkColumn
 
     df = pd.concat(connection_dfs)
-    n_remaining_links = len(df)
-
     df = utils.sort_and_drop_duplicates(df)
     n_uniq_links = len(df)
 
