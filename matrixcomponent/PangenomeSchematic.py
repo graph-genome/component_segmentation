@@ -61,11 +61,17 @@ class PangenomeSchematic:
                                                these_comp[-1].last_bin, these_comp, self.path_names,
                                                self.total_nr_files, self.pangenome_length)
                 schematic.filename = self.filename(i)  # save for consistency IMPORTANT
-                schematic.fasta_filename = self.fasta_filename(i)
                 partitions.append(schematic)
-                bin2file_mapping.append({"file": schematic.filename,
-                                         "first_bin": schematic.first_bin,
-                                         "last_bin": schematic.last_bin})
+                if schematic.bin_width == 1:
+                    schematic.fasta_filename = self.fasta_filename(i)
+                    bin2file_mapping.append({"file": schematic.filename,
+                                             "fasta": schematic.fasta_filename,
+                                             "first_bin": schematic.first_bin,
+                                             "last_bin": schematic.last_bin})
+                else:
+                    bin2file_mapping.append({"file": schematic.filename,
+                                             "first_bin": schematic.first_bin,
+                                             "last_bin": schematic.last_bin})
         return partitions, bin2file_mapping
 
     def find_cut_points_in_file_split(self, bins_per_file, column_counts):
