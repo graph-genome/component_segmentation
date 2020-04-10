@@ -39,8 +39,8 @@ def process_path(line=None):
             if type(ranges) is not list and len(b) >= 6:
                 ranges = [[b[4], b[5]]]
 
-            p.bins.append(p.Bin(b[0], b[1], b[2], ranges))
-        p.finalize_bins()
+            bin = p.Bin(b[0], b[1], b[2], ranges)
+            p.bins.setdefault(bin.bin_id, bin)
 
         p.links = np.array(path['links'])
 
