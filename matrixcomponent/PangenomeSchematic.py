@@ -27,7 +27,7 @@ class PangenomeSchematic:
     def json_dump(self):
         def dumper(obj):
             if isinstance(obj, Bin):  # should be in Bin class def
-                return [obj.coverage, obj.inversion, obj.first_nucleotide, obj.last_nucleotide]
+                return [obj.coverage, obj.inversion, obj.nucleotide_ranges]
             if isinstance(obj, set):
                 return list(obj)
             try:

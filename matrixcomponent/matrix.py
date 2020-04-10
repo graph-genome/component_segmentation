@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass
 from typing import List
+import numpy
 
 ## Path is all for input files
 
@@ -21,8 +22,7 @@ class Path:
         bin_id: int
         coverage: float
         inversion_rate: float
-        first_nucleotide: int
-        last_nucleotide: int
+        nucleotide_ranges: List[List[int]]
         sequence: str = ''
 
     class LinkEntry:
@@ -52,8 +52,7 @@ class LinkColumn:
 class Bin:
     coverage: float
     inversion: float
-    first_nucleotide: int
-    last_nucleotide: int
+    nucleotide_ranges: List[List[int]]
 
 
 class Component:
