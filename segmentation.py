@@ -40,11 +40,12 @@ def populate_component_occupancy(schematic: PangenomeSchematic):
                                for bins in component.matrix]
     print("Populated Occupancy per component per path.")
 
+
 def populate_component_matrix(paths: List[Path], schematic: PangenomeSchematic):
     # the loops are 1) paths, and then 2) schematic.components
     # paths are in the same order as schematic.path_names
     for i, path in enumerate(paths):
-        sorted_bins = SortedDict((bin.bin_id, bin) for bin in path.bins)
+        sorted_bins = path.bins
         values = list(sorted_bins.values())
         for component in schematic.components:
             from_id = sorted_bins.bisect_left (component.first_bin)
@@ -55,7 +56,7 @@ def populate_component_matrix(paths: List[Path], schematic: PangenomeSchematic):
                 padded = [[]] * (component.last_bin - component.first_bin + 1)
                 for bin in relevant:
                     padded[bin.bin_id - component.first_bin] =  \
-                        Bin(bin.coverage, bin.inversion_rate, bin.first_nucleotide, bin.last_nucleotide)
+                        Bin(bin.coverage, bin.inversion_rate, bin.nucleotide_ranges)
             component.matrix.append(padded)  # ensure there's always 1 entry for each path
     print("Populated Matrix per component per path.")
     populate_component_occupancy(schematic)
@@ -168,9 +169,7 @@ def find_dividers(matrix: List[Path]) -> Tuple[pd.DataFrame, Set[int]]:
     connection_dfs = []  # pandas dataframe with columns (from, to, path [name])
 
     for i, path in enumerate(matrix):
-        bin_ids = np.array([b.bin_id for b in path.bins])
-        bin_ids.sort()
-
+        bin_ids = np.array(path.bins.keys()) # already sorted
         if bin_ids.size > 0:
             max_bin = max(max_bin, int(bin_ids[-1]))
 
@@ -368,3 +367,6 @@ if __name__ == '__main__':
     main()
 #--json-file=data/run1.B1phi1.i1.seqwish.w100.json --cells-per-file=5000
 # --fasta=data/run1.B1phi1.i1.seqwish.fasta
+
+# python segmentation.py -j data/run1.B1phi1.i1.seqwish.w1.json -f data/run1.B1phi1.i1.seqwish.fasta --cells-per-file 25000
+

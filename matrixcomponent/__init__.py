@@ -1,5 +1,5 @@
-JSON_VERSION = 11  # This version added "fasta" optional argument for chunks
-ODGI_VERSION = 10
+JSON_VERSION = 12  # This version added adjacent connectors in departures column
+ODGI_VERSION = 12
 
 import logging
 
