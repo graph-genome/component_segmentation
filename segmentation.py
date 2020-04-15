@@ -10,10 +10,10 @@ Output format
 from typing import List, Tuple, Set
 from pathlib import Path as osPath
 from datetime import datetime
-from sortedcontainers import SortedDict
 from DNASkittleUtils.Contigs import read_contigs
+from joblib import Parallel
 
-from matrixcomponent.matrix import Path, Component, LinkColumn, Bin
+from matrixcomponent.matrix import Path, Component, LinkColumn
 from matrixcomponent.PangenomeSchematic import PangenomeSchematic
 import matrixcomponent.utils as utils
 
@@ -38,38 +38,50 @@ def populate_component_occupancy(schematic: PangenomeSchematic):
         # side effect instead of return
         component.occupants = [any([bin.coverage > 0.1 for bin in bins if bin])
                                for bins in component.matrix]
-    print("Populated Occupancy per component per path.")
+    LOGGER.info("Populated Occupancy per component per path.")
+
 
 def populate_component_matrix(paths: List[Path], schematic: PangenomeSchematic):
     # the loops are 1) paths, and then 2) schematic.components
     # paths are in the same order as schematic.path_names
-    for i, path in enumerate(paths):
-        sorted_bins = SortedDict((bin.bin_id, bin) for bin in path.bins)
+    first_bins = np.asarray([component.first_bin for component in schematic.components])
+    last_bins  = np.asarray([component.last_bin for component in schematic.components])
+
+    empty = []
+    for path in paths:
+        sorted_bins = path.bins
+        keys = np.asarray(sorted_bins.keys())
         values = list(sorted_bins.values())
-        for component in schematic.components:
-            from_id = sorted_bins.bisect_left (component.first_bin)
-            to_id   = sorted_bins.bisect_right(component.last_bin)
-            relevant = values[from_id:to_id]
-            padded = []
-            if relevant:
-                padded = [[]] * (component.last_bin - component.first_bin + 1)
-                for bin in relevant:
-                    padded[bin.bin_id - component.first_bin] =  \
-                        Bin(bin.coverage, bin.inversion_rate, bin.first_nucleotide, bin.last_nucleotide)
-            component.matrix.append(padded)  # ensure there's always 1 entry for each path
-    print("Populated Matrix per component per path.")
+
+        # Numpy vectorized binary search
+        from_ids = np.searchsorted(keys, first_bins, side='left')
+        to_ids   = np.searchsorted(keys, last_bins,  side='right')
+
+        # synchron loop over all arrays
+        for comp,fb,lb,fr,to in zip(schematic.components,first_bins,last_bins,from_ids,to_ids):
+            if fr < to:
+                padded = [empty] * (lb - fb + 1) # use references, not [] as new objects
+                for bin in values[fr:to]:
+                    padded[bin.bin_id - fb] = bin # do not create objects, simply link them
+            else:
+                padded = empty
+
+            comp.matrix.append(padded)
+
+    LOGGER.info("Populated Matrix per component per path.")
     populate_component_occupancy(schematic)
 
 
-def segment_matrix(matrix: List[Path], bin_width, cells_per_file, pangenome_length) -> PangenomeSchematic:
+def segment_matrix(matrix: List[Path], bin_width, cells_per_file, pangenome_length, parallel) -> PangenomeSchematic:
     from matrixcomponent import JSON_VERSION
-    print(f"Starting Segmentation process on {len(matrix)} Paths.")
+    LOGGER.info(f"Starting Segmentation process on {len(matrix)} Paths.")
     schematic = PangenomeSchematic(JSON_VERSION,
                                    bin_width,
                                    1,
                                    1,
                                    [], [p.name for p in matrix], 1, pangenome_length)
     connections, dividers = dividers_with_max_size(matrix, cells_per_file)
+    LOGGER.info(f"Created dividers")
 
     component_by_first_bin = {}
     component_by_last_bin = {}
@@ -82,26 +94,24 @@ def segment_matrix(matrix: List[Path], bin_width, cells_per_file, pangenome_leng
             component_by_first_bin[start_pos] = current
             component_by_last_bin[valid_start - 1] = current
         start_pos = valid_start
-    print(f"Created {len(schematic.components)} components")
+    LOGGER.info(f"Created {len(schematic.components)} components")
 
     # populate Component occupancy per Path
     populate_component_matrix(matrix, schematic)
+    LOGGER.info(f"populated matrix")
 
     connections_array = connections.to_numpy()
     groups = utils.find_groups(connections_array[:, :2])
     path_indices = connections.path_index.to_numpy()
 
-    participants_mask = np.zeros(len(schematic.path_names), dtype=bool)
+    num_paths = len(schematic.path_names)
 
     nLinkColumns = 0
     for (start, end) in groups:
         row = connections_array[start]
         src, dst = int(row[0]), int(row[1])
 
-        participants_mask[:] = False
-        participants_mask[path_indices[start:end]] = True
-        phase_dots = participants_mask.tolist()
-        link_column = LinkColumn(src, dst, participants=phase_dots)
+        link_column = LinkColumn(src, dst, participants=path_indices[start:end], num_paths=num_paths)
 
         src_component = component_by_last_bin.get(src)
         dst_component = component_by_first_bin.get(dst)
@@ -118,7 +128,7 @@ def segment_matrix(matrix: List[Path], bin_width, cells_per_file, pangenome_leng
         component, next_component = schematic.components[i],schematic.components[i+1]
         add_adjacent_connector_column(component, next_component, schematic)
 
-    print(f"Created {nLinkColumns} LinkColumns")
+    LOGGER.info(f"Created {nLinkColumns} LinkColumns")
 
     return schematic
 
@@ -146,19 +156,21 @@ def add_adjacent_connector_column(component, next_component, schematic):
     Use logic to decide on which rows need adjacent connectors
     Start with the easy subtractive case of occupancy - departures and move to more complex,
     multiple copy cases."""
-    adjacents = []
-    for row in range(len(schematic.path_names)):
-        connection_exists = False
-        if component.occupants[row] and next_component.occupants[row]:  # occupant present
-            # n_arrivals = sum([column.participants[row] for column in component.arrivals])
-            departed = any([column.participants[row] for column in component.departures]) # no need to compute sum
-            # connection_exists = n_arrivals + 1 > departed
-            connection_exists = not departed  # didn't depart
-        adjacents.append(connection_exists)
+
+    filtered_rows = [row for row in range(len(schematic.path_names)) \
+                                     if component.occupants[row] and next_component.occupants[row] ]
+    adjacents = filtered_rows # we take all the filtered IDs if there are no departures
+
+    if len(filtered_rows) > 0 and len(component.departures) > 0: # potentially there's work to do
+        ids = np.concatenate([column.participants for column in component.departures])
+        isin = np.isin(filtered_rows, ids, invert=True)
+        adjacents = [row for idx,row in enumerate(filtered_rows) if isin[idx]]
+
     component.departures.append(LinkColumn(  # LinkColumn for adjacents
         component.last_bin,
         component.last_bin + 1,
-        participants=adjacents))
+        participants=np.asarray(adjacents),
+        num_paths=len(schematic.path_names)))
 
 
 def find_dividers(matrix: List[Path]) -> Tuple[pd.DataFrame, Set[int]]:
@@ -169,9 +181,7 @@ def find_dividers(matrix: List[Path]) -> Tuple[pd.DataFrame, Set[int]]:
 
     n_remaining_links = 0
     for i, path in enumerate(matrix):
-        bin_ids = np.array([b.bin_id for b in path.bins])
-        bin_ids.sort()
-
+        bin_ids = np.asarray(path.bins.keys()) # already sorted
         if bin_ids.size > 0:
             max_bin = max(max_bin, int(bin_ids[-1]))
 
@@ -223,17 +233,16 @@ def find_dividers(matrix: List[Path]) -> Tuple[pd.DataFrame, Set[int]]:
     dividers = np.concatenate([[1, max_bin + 1], df["from"] + 1, df["to"]])
     dividers = np.unique(dividers).tolist()
 
-    print(f"Largest bin_id was {max_bin}\n"
-          f"Found {len(dividers)} dividers.")
+    LOGGER.info(f"Largest bin_id was {max_bin}; Found {len(dividers)} dividers.")
 
     if self_loops:
         n_self_loops = np.unique(np.concatenate(self_loops), axis=0).shape[0]
-        print(f"Eliminated {n_self_loops} self-loops")
+        LOGGER.info(f"Eliminated {n_self_loops} self-loops")
 
     n_links = sum([len(p.links) for p in matrix])
-    print(f"Input has {n_links} listed Links.  "
+    LOGGER.info(f"Input has {n_links} listed Links.  "
           f"Segmentation eliminated {(1-n_remaining_links/n_links)*100}% of them.")
-    print(f"Found {n_uniq_links} unique links")
+    LOGGER.info(f"Found {n_uniq_links} unique links")
 
     return df, dividers
 
@@ -341,8 +350,15 @@ def main():
     args = get_arguments()
     setup_logging()
     LOGGER.info(f'reading {osPath(args.json_file)}...\n')
-    paths, pangenome_length, bin_width = JSONparser.parse(args.json_file, args.parallel_cores)
-    schematic = segment_matrix(paths, bin_width, args.cells_per_file, pangenome_length)
+
+    if args.parallel_cores > 0:
+        chunk_size = args.parallel_cores
+    else:
+        chunk_size = os.cpu_count()
+
+    parallel = Parallel(n_jobs=chunk_size, prefer="processes")
+    paths, pangenome_length, bin_width, parallel = JSONparser.parse(args.json_file, chunk_size, parallel)
+    schematic = segment_matrix(paths, bin_width, args.cells_per_file, pangenome_length, parallel)
     del paths
 
     # this one spits out json and optionally other output files (fasta, ttl)

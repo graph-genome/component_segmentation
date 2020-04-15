@@ -2,41 +2,29 @@
 
 from dataclasses import dataclass
 from typing import List
+import numpy
+from sortedcontainers import SortedDict
+
+
+@dataclass
+class Bin:
+    bin_id: int
+    coverage: float
+    inversion: float
+    nucleotide_ranges: List[List[int]]
+    sequence: str = ''
 
 ## Path is all for input files
 
 
 class Path:
     name: str
-    bins: 'List[Path.Bin]'
+    bins: 'SortedDict[int,Bin]'
     links: 'numpy.array'
 
     def __init__(self, name=''):
         self.name = name
-        self.bins = []  # Bin
-        self._bin_set = set()
-
-    @dataclass
-    class Bin:
-        bin_id: int
-        coverage: float
-        inversion_rate: float
-        first_nucleotide: int
-        last_nucleotide: int
-        sequence: str = ''
-
-    class LinkEntry:
-        def __init__(self, upstream, downstream):
-            self.upstream = upstream
-            self.downstream = downstream
-            # TODO: self.insert_size will require a topology search to find this
-
-    def __contains__(self, item):  # used by " x in Path "
-        return item in self._bin_set
-
-    def finalize_bins(self):
-        self._bin_set = {x.bin_id for x in self.bins}  # build and cache a set
-
+        self.bins = SortedDict()  # Bin
 
 
 ## For Output to RDF  ###########
@@ -44,16 +32,8 @@ class Path:
 class LinkColumn:
     upstream: int
     downstream: int
-    participants: List[bool]  # in order path_names, true if the individual participates in this LinkColumn
-    # participants depends on row ordering of path names, optimized precompute for display
-
-
-@dataclass
-class Bin:
-    coverage: float
-    inversion: float
-    first_nucleotide: int
-    last_nucleotide: int
+    num_paths: int
+    participants: 'numpy.array' # ids of participated path_names
 
 
 class Component:

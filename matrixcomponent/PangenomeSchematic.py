@@ -10,7 +10,7 @@ from typing import List
 from dataclasses import dataclass
 
 from matrixcomponent import JSON_VERSION
-from matrixcomponent.matrix import Component, Bin
+from matrixcomponent.matrix import Component, Bin, LinkColumn
 
 from DNASkittleUtils.Contigs import Contig, write_contigs_to_file
 
@@ -28,7 +28,12 @@ class PangenomeSchematic:
     def json_dump(self):
         def dumper(obj):
             if isinstance(obj, Bin):  # should be in Bin class def
-                return [obj.coverage, obj.inversion, obj.first_nucleotide, obj.last_nucleotide]
+                return [obj.coverage, obj.inversion, obj.nucleotide_ranges]
+            if isinstance(obj, LinkColumn): # todo: get rid of booleans once the JS side can digest path_names ids
+                bools = [False] * obj.num_paths
+                for i in obj.participants:
+                    bools[i] = True
+                return {'upstream':obj.upstream, 'downstream':obj.downstream, 'participants':bools}
             if isinstance(obj, set):
                 return list(obj)
             try:

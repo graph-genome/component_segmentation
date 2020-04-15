@@ -1,8 +1,7 @@
 import json
 import logging
 
-import os
-from joblib import Parallel, delayed
+from joblib import delayed
 
 import matrixcomponent.matrix as matrix
 from matrixcomponent import ODGI_VERSION
@@ -35,31 +34,33 @@ def process_path(line=None):
         p = matrix.Path(path['path_name'])
 
         for b in path['bins']:
-            p.bins.append(p.Bin(b[0], b[1], b[2], b[4], b[5]))
-        p.finalize_bins()
+            ranges = b[4]
+            if type(ranges) is not list and len(b) >= 6:
+                ranges = [[b[4], b[5]]]
+
+            bin = matrix.Bin(b[0], b[1], b[2], ranges)
+            p.bins.setdefault(bin.bin_id, bin)
 
         p.links = np.array(path['links'])
 
     return [pangenome_length, bin_width, p]
 
 
-def parse(file, parallel_cores):
+def parse(file, chunk_size, parallel):
     paths = []
     pangenome_length = 0
     bin_width = 0
 
-    if parallel_cores > 0:
-        chunk_size = parallel_cores
-    else:
-        chunk_size = os.cpu_count()
-
-    with open(file) as f, Parallel(n_jobs=chunk_size, prefer="processes") as parallel:
+    with open(file) as f:
         while True:
             lines = list(islice(f, chunk_size))
             if len(lines) == 0:
                 break
 
-            results = parallel(delayed(process_path)(line) for line in lines)
+            if parallel is None:
+                results = [process_path(line) for line in lines] # serial version
+            else:
+                results = parallel(delayed(process_path)(line) for line in lines)
             for res in results:
                 plen, bwidth, p = res[0], res[1], res[2]
                 if plen > -1:
@@ -69,4 +70,4 @@ def parse(file, parallel_cores):
                 if p is not None:
                     paths.append(p)
 
-    return (paths, pangenome_length, bin_width)
+    return (paths, pangenome_length, bin_width, parallel)
