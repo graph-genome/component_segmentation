@@ -357,7 +357,7 @@ def main():
         chunk_size = os.cpu_count()
 
     parallel = Parallel(n_jobs=chunk_size, prefer="processes")
-    paths, pangenome_length, bin_width, parallel = JSONparser.parse(args.json_file, chunk_size, parallel)
+    paths, pangenome_length, bin_width, parallel = JSONparser.parse(args.json_file, chunk_size*32, parallel) # 32x blocks
     schematic = segment_matrix(paths, bin_width, args.cells_per_file, pangenome_length, parallel)
     del paths
 

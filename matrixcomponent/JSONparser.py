@@ -57,6 +57,11 @@ def parse(file, chunk_size, parallel):
             if len(lines) == 0:
                 break
 
+            # early filtering saves time
+            lines = [line for line in lines if line.startswith("odgi", 2, 10) or line.startswith("path", 2, 10) ]
+            if len(lines) == 0:
+                continue
+
             if parallel is None:
                 results = [process_path(line) for line in lines] # serial version
             else:
