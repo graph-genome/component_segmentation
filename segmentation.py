@@ -48,7 +48,12 @@ def populate_component_matrix(paths: List[Path], schematic: PangenomeSchematic):
     last_bins  = np.asarray([component.last_bin for component in schematic.components])
 
     empty = []
-    for path in paths:
+
+    # preallocate to get rid of list.append()
+    for component in schematic.components:
+        component.matrix = [empty] * len(paths)
+
+    for p,path in enumerate(paths):
         sorted_bins = path.bins
         keys = np.asarray(sorted_bins.keys())
         values = list(sorted_bins.values())
@@ -63,10 +68,7 @@ def populate_component_matrix(paths: List[Path], schematic: PangenomeSchematic):
                 padded = [empty] * (lb - fb + 1) # use references, not [] as new objects
                 for bin in values[fr:to]:
                     padded[bin.bin_id - fb] = bin # do not create objects, simply link them
-            else:
-                padded = empty
-
-            comp.matrix.append(padded)
+                comp.matrix[p] = padded
 
     LOGGER.info("Populated Matrix per component per path.")
     populate_component_occupancy(schematic)
@@ -179,7 +181,6 @@ def find_dividers(matrix: List[Path]) -> Tuple[pd.DataFrame, Set[int]]:
     self_loops = []  # track self loops just in case component gets cut in half
     connection_dfs = []  # pandas dataframe with columns (from, to, path [name])
 
-    n_remaining_links = 0
     for i, path in enumerate(matrix):
         bin_ids = np.asarray(path.bins.keys()) # already sorted
         if bin_ids.size > 0:
@@ -209,9 +210,6 @@ def find_dividers(matrix: List[Path]) -> Tuple[pd.DataFrame, Set[int]]:
             'path_index': i
         })
 
-        n_remaining_links = n_remaining_links + len(df)
-        df = utils.sort_and_drop_duplicates(df) # early deduplication saves lots of runtime memory
-
         connection_dfs.append(df)
 
         # <old comments applicable to each divider>
@@ -225,7 +223,9 @@ def find_dividers(matrix: List[Path]) -> Tuple[pd.DataFrame, Set[int]]:
         # Stack up others using the same LinkColumn
 
     df = pd.concat(connection_dfs)
-    df = utils.sort_and_drop_duplicates(df)
+    n_remaining_links = len(df)
+
+    df = utils.sort_and_drop_duplicates(df, shift=len(bin(max_bin)) - 2, path_shift=len(bin(len(matrix))) - 2)
     n_uniq_links = len(df)
 
     # all start positions of components
@@ -357,15 +357,27 @@ def main():
         chunk_size = os.cpu_count()
 
     parallel = Parallel(n_jobs=chunk_size, prefer="processes")
-    paths, pangenome_length, bin_width, parallel = JSONparser.parse(args.json_file, chunk_size*32, parallel) # 32x blocks
+    paths, pangenome_length, bin_width, parallel = JSONparser.parse(args.json_file, chunk_size, parallel)
     schematic = segment_matrix(paths, bin_width, args.cells_per_file, pangenome_length, parallel)
-    del paths
 
     # this one spits out json and optionally other output files (fasta, ttl)
     write_files(args.output_folder, args.fasta, schematic)
 
+    LOGGER.info("Finished processing the file " + args.json_file)
 
 if __name__ == '__main__':
+    import atexit
+    import gc
+
+    # https://instagram-engineering.com/dismissing-python-garbage-collection-at-instagram-4dca40b29172
+    # gc.disable() doesn't work, because some random 3rd-party library will
+    # enable it back implicitly.
+    gc.set_threshold(0)
+    # Suicide immediately after other atexit functions finishes.
+    # CPython will do a bunch of cleanups in Py_Finalize which
+    # will again cause Copy-on-Write, including a final GC
+    atexit.register(os._exit, 0)
+
     main()
 #--json-file=data/run1.B1phi1.i1.seqwish.w100.json --cells-per-file=5000
 # --fasta=data/run1.B1phi1.i1.seqwish.fasta
