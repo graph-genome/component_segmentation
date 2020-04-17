@@ -77,7 +77,7 @@ def find_groups(connections_from, connections_to: np.array) -> 'List[(int, int)]
     return _split_numpy_arr(connections_from, connections_to)
 
 
-def sort_and_drop_duplicates(connections: List, shift=21, path_shift=10) -> dict:
+def sort_and_drop_duplicates(connections: 'List[np.array]', shift=21, path_shift=10) -> dict:
     '''
     returns connections sorted by ["from", "to", "path_index"] without duplicate entries;
     see find_dividers in segmentation.py

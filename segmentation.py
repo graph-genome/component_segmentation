@@ -158,14 +158,17 @@ def add_adjacent_connector_column(component, next_component, schematic):
     Start with the easy subtractive case of occupancy - departures and move to more complex,
     multiple copy cases."""
 
-    filtered_rows = [row for row in range(len(schematic.path_names)) \
-                                     if component.occupants[row] and next_component.occupants[row] ]
+    ids = np.arange(len(schematic.path_names))
+    mask_component = np.asarray(component.occupants, dtype=bool)
+    mask_next_component = np.asarray(next_component.occupants, dtype=bool)
+
+    filtered_rows = ids[mask_component & mask_next_component]
     adjacents = filtered_rows # we take all the filtered IDs if there are no departures
 
     if len(filtered_rows) > 0 and len(component.departures) > 0: # potentially there's work to do
         ids = np.concatenate([column.participants for column in component.departures])
         isin = np.isin(filtered_rows, ids, invert=True)
-        adjacents = [row for idx,row in enumerate(filtered_rows) if isin[idx]]
+        adjacents = filtered_rows[isin]
 
     component.departures.append(LinkColumn(  # LinkColumn for adjacents
         component.last_bin,
@@ -223,7 +226,7 @@ def find_dividers(matrix: List[Path]) -> Tuple[dict, Set[int]]:
 
     # all start positions of components
     # (max_bin + 1) is end of pangenome
-    dividers = np.concatenate([[1, max_bin + 1], df["from"] + 1, df["to"]])
+    dividers = np.concatenate([np.asarray([1, max_bin + 1], dtype='int32'), df["from"] + 1, df["to"]])
     dividers = np.unique(dividers).tolist()
 
     LOGGER.info(f"Largest bin_id was {max_bin}; Found {len(dividers)} dividers.")
@@ -350,7 +353,8 @@ def main():
         chunk_size = os.cpu_count()
 
     parallel = Parallel(n_jobs=chunk_size, prefer="processes")
-    paths, pangenome_length, bin_width, parallel = JSONparser.parse(args.json_file, chunk_size, parallel)
+
+    paths, pangenome_length, bin_width = JSONparser.parse(args.json_file, chunk_size, parallel)
     schematic = segment_matrix(paths, bin_width, args.cells_per_file, pangenome_length, parallel)
 
     # this one spits out json and optionally other output files (fasta, ttl)

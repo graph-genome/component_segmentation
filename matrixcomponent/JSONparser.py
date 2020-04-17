@@ -84,4 +84,4 @@ def parse(file, chunk_size, parallel):
     if len(lines) > 0:
         do_processing(parallel, lines, pangenome_length, bin_width, paths)
 
-    return (paths, pangenome_length[0], bin_width[0], parallel)
+    return (paths, pangenome_length[0], bin_width[0])
