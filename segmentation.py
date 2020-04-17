@@ -178,7 +178,7 @@ def find_dividers(matrix: List[Path]) -> Tuple[dict, Set[int]]:
     max_bin = 1
 
     self_loops = []  # track self loops just in case component gets cut in half
-    connection_dfs = []  # pandas dataframe with columns (from, to, path [name])
+    connection_dfs = []
 
     n_remaining_links = 0
     for i, path in enumerate(matrix):
