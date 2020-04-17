@@ -361,6 +361,7 @@ def main():
 if __name__ == '__main__':
     import atexit
     import gc
+    import psutil
 
     # https://instagram-engineering.com/dismissing-python-garbage-collection-at-instagram-4dca40b29172
     # gc.disable() doesn't work, because some random 3rd-party library will
@@ -372,5 +373,11 @@ if __name__ == '__main__':
     atexit.register(os._exit, 0)
 
     main()
+
+    # force kill the child processes
+    parent = psutil.Process(os.getpid())
+    for child in parent.children(recursive=True):
+        child.kill()
+
 #--json-file=data/run1.B1phi1.i1.seqwish.w100.json --cells-per-file=5000
 # --fasta=data/run1.B1phi1.i1.seqwish.fasta
