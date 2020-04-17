@@ -25,7 +25,6 @@ import matrixcomponent
 import matrixcomponent.JSONparser as JSONparser
 
 import numpy as np
-import pandas as pd
 
 MAX_COMPONENT_SIZE = 100  # automatic calculation from cells_per_file did not go well
 LOGGER = logging.getLogger(__name__)
@@ -102,16 +101,16 @@ def segment_matrix(matrix: List[Path], bin_width, cells_per_file, pangenome_leng
     populate_component_matrix(matrix, schematic)
     LOGGER.info(f"populated matrix")
 
-    connections_array = connections.to_numpy()
-    groups = utils.find_groups(connections_array[:, :2])
-    path_indices = connections.path_index.to_numpy()
+    path_indices = connections['path_index']
+    connections_from = connections['from']
+    connections_to   = connections['to']
+    groups = utils.find_groups(connections_from, connections_to)
 
     num_paths = len(schematic.path_names)
 
     nLinkColumns = 0
     for (start, end) in groups:
-        row = connections_array[start]
-        src, dst = int(row[0]), int(row[1])
+        src, dst = int(connections_from[start]), int(connections_to[start]) # important to cast to int()
 
         link_column = LinkColumn(src, dst, participants=path_indices[start:end], num_paths=num_paths)
 
@@ -171,16 +170,17 @@ def add_adjacent_connector_column(component, next_component, schematic):
     component.departures.append(LinkColumn(  # LinkColumn for adjacents
         component.last_bin,
         component.last_bin + 1,
-        participants=np.asarray(adjacents),
+        participants=np.asarray(adjacents).astype(dtype='int32'),
         num_paths=len(schematic.path_names)))
 
 
-def find_dividers(matrix: List[Path]) -> Tuple[pd.DataFrame, Set[int]]:
+def find_dividers(matrix: List[Path]) -> Tuple[dict, Set[int]]:
     max_bin = 1
 
     self_loops = []  # track self loops just in case component gets cut in half
     connection_dfs = []  # pandas dataframe with columns (from, to, path [name])
 
+    n_remaining_links = 0
     for i, path in enumerate(matrix):
         bin_ids = np.asarray(path.bins.keys()) # already sorted
         if bin_ids.size > 0:
@@ -204,13 +204,9 @@ def find_dividers(matrix: List[Path]) -> Tuple[pd.DataFrame, Set[int]]:
         if path_dividers.size == 0:
             continue
 
-        df = pd.DataFrame.from_dict({
-            'from': path_dividers[:, 0],  # aka upstream
-            'to': path_dividers[:, 1],    # aka downstream
-            'path_index': i
-        })
-
-        connection_dfs.append(df)
+        n_remaining_links = n_remaining_links + len(path_dividers)
+        arr = np.stack( (path_dividers[:, 0], path_dividers[:, 1], i*np.ones(len(path_dividers)).astype(dtype='int32')) )
+        connection_dfs.append(arr)
 
         # <old comments applicable to each divider>
         #
@@ -222,11 +218,8 @@ def find_dividers(matrix: List[Path]) -> Tuple[pd.DataFrame, Set[int]]:
         # Tolerable range?
         # Stack up others using the same LinkColumn
 
-    df = pd.concat(connection_dfs)
-    n_remaining_links = len(df)
-
-    df = utils.sort_and_drop_duplicates(df, shift=len(bin(max_bin)) - 2, path_shift=len(bin(len(matrix))) - 2)
-    n_uniq_links = len(df)
+    df = utils.sort_and_drop_duplicates(connection_dfs, shift=len(bin(max_bin)) - 2, path_shift=len(bin(len(matrix))) - 2)
+    n_uniq_links = len(df['path_index'])
 
     # all start positions of components
     # (max_bin + 1) is end of pangenome

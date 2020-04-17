@@ -2,7 +2,6 @@
 from typing import List
 
 import numpy as np
-import pandas as pd
 
 
 def path_boundaries(links: np.array) -> np.array:
@@ -39,20 +38,20 @@ def path_dividers(links: np.array, bin_ids: np.array) -> np.array:
 
 
 # warning: this function is intended to be numba-compatible
-def _split_numpy_arr(arr):
+def _split_numpy_arr(connections_from, connections_to):
     groups = []
-    src, dst = arr[0]
+    src, dst = connections_from[0], connections_to[0]
     group_start = 0
 
-    for i in range(arr.shape[0]):
-        item = arr[i]
-        if item[0] != src or item[1] != dst:
+    for i in range(len(connections_from)):
+        isrc, idst = connections_from[i], connections_to[i]
+        if isrc != src or idst != dst:
             groups.append((group_start, i))
             group_start = i
-            src, dst = item
+            src, dst = isrc, idst
 
     # add last group
-    groups.append((group_start, arr.shape[0]))
+    groups.append((group_start, len(connections_from)))
     return groups
 
 try:
@@ -64,20 +63,21 @@ except ImportError:
     pass
 
 
-def find_groups(data: np.array) -> 'List[(int, int)]':
+def find_groups(connections_from, connections_to: np.array) -> 'List[(int, int)]':
     '''
     Returns:
       list of [start, end) indices such that for each item data[start:end] has constant value
     Args:
-      data(np.array): [N x 2] array of data; in context of segmentation each row is (upstream, downstream)
+      connections_from(np.array): [N x 1] array of upstream data
+      connections_to(np.array): [N x 1] array of downstream data
     '''
-    if data.size == 0:
+    if connections_from.size == 0:
         return []
 
-    return _split_numpy_arr(data)
+    return _split_numpy_arr(connections_from, connections_to)
 
 
-def sort_and_drop_duplicates(connections: 'pd.DataFrame', shift=21, path_shift=10) -> 'pd.DataFrame':
+def sort_and_drop_duplicates(connections: List, shift=21, path_shift=10) -> dict:
     '''
     returns connections sorted by ["from", "to", "path_index"] without duplicate entries;
     see find_dividers in segmentation.py
@@ -85,19 +85,17 @@ def sort_and_drop_duplicates(connections: 'pd.DataFrame', shift=21, path_shift=1
     mask = (1 << shift) - 1
     lower_mask = (1 << path_shift) - 1
 
-    if np.any(connections.max() > mask):
-        # nigh impossible with the default limit: (1 << 21) = 2M bins / paths;
-        # as such, this line of code is mostly for illustration purposes
-        return connections.drop_duplicates().sort_values(by=["from", "to", "path_index"])
-
     # the columns are assumed to be (from, to, path_index)
-    array = connections.to_numpy()
+    array = np.concatenate(connections, axis=-1)
 
     # compress all columns into a single 64-bit integer
-    compressed = (array[:, 0] << (shift + path_shift)) + (array[:, 1] << path_shift) + array[:, 2]
+    compressed = (np.array(array[0, :], dtype='int64', copy=False) << (shift + path_shift)) + \
+                 (np.array(array[1, :], dtype='int64', copy=False) << path_shift) + \
+                 array[2, :]
+
     compressed_no_dups = np.unique(compressed)
 
-    return pd.DataFrame.from_dict({
+    return dict({
         'from': (compressed_no_dups >> (shift + path_shift)).astype('int32', copy=False),
         'to': ((compressed_no_dups >> path_shift) & mask).astype('int32', copy=False),
         'path_index': (compressed_no_dups & lower_mask).astype('int32', copy=False)
