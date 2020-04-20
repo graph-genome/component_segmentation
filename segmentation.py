@@ -54,21 +54,36 @@ def populate_component_matrix(paths: List[Path], schematic: PangenomeSchematic):
         from_ids = np.searchsorted(keys, first_bins, side='left')
         to_ids   = np.searchsorted(keys, last_bins,  side='right')
 
-        mask = from_ids < to_ids
+        # the case "from+1 == to". Here we can save lots of unnecessary slicing and looping
+        mask = from_ids+1 == to_ids
+        if np.any(mask):
+            comp_filtered = comp_array[mask]
+            from_filtered = from_ids[mask]
 
-        comp_filtered = comp_array[mask]
-        from_filtered = from_ids[mask]
-        to_filtered   = to_ids[mask]
+            # synchron loop over all arrays
+            # this case enforces first_bin == last_bin --- comp.matrix[p] has a single element
+            for comp, fr in zip(comp_filtered, from_filtered):
+                bin = values[fr]
+                comp.matrix[p] = [bin]
+                comp.occupants[p] = bin.coverage > 0.1
 
-        # synchron loop over all arrays
-        for comp,fr,to in zip(comp_filtered,from_filtered,to_filtered):
-            fb, lb = comp.first_bin, comp.last_bin
-            padded = [empty] * (lb - fb + 1) # use references, not [] as new objects
-            sliced = values[fr:to]
-            for bin in sliced:
-                padded[bin.bin_id - fb] = bin # do not create objects, simply link them
-            comp.matrix[p] = padded
-            comp.occupants[p] = any([bin.coverage > 0.1 for bin in sliced])
+
+        # and a general one "from+1 < to"
+        mask = from_ids+1 < to_ids
+        if np.any(mask):
+            comp_filtered = comp_array[mask]
+            from_filtered = from_ids[mask]
+            to_filtered   = to_ids[mask]
+
+            # synchron loop over all arrays
+            for comp,fr,to in zip(comp_filtered,from_filtered,to_filtered):
+                fb, lb = comp.first_bin, comp.last_bin
+                padded = [empty] * (lb - fb + 1) # use references, not [] as new objects
+                sliced = values[fr:to]
+                for bin in sliced:
+                    padded[bin.bin_id - fb] = bin # do not create objects, simply link them
+                comp.matrix[p] = padded
+                comp.occupants[p] = any([bin.coverage > 0.1 for bin in sliced])
 
     LOGGER.info("Populated Matrix and Occupancy per component per path.")
 
