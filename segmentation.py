@@ -31,26 +31,19 @@ LOGGER = logging.getLogger(__name__)
 """logging.Logger: The logger for this module"""
 
 
-def populate_component_occupancy(schematic: PangenomeSchematic):
-    for component in schematic.components:
-        # are matrix paths in the same order as schematic.path_names?
-        # side effect instead of return
-        component.occupants = [any([bin.coverage > 0.1 for bin in bins if bin])
-                               for bins in component.matrix]
-    LOGGER.info("Populated Occupancy per component per path.")
-
-
 def populate_component_matrix(paths: List[Path], schematic: PangenomeSchematic):
     # the loops are 1) paths, and then 2) schematic.components
     # paths are in the same order as schematic.path_names
     first_bins = np.asarray([component.first_bin for component in schematic.components])
     last_bins  = np.asarray([component.last_bin for component in schematic.components])
+    comp_array = np.asarray([component for component in schematic.components])
 
     empty = []
 
     # preallocate to get rid of list.append()
     for component in schematic.components:
         component.matrix = [empty] * len(paths)
+        component.occupants = [False] * len(paths)
 
     for p,path in enumerate(paths):
         sorted_bins = path.bins
@@ -61,16 +54,23 @@ def populate_component_matrix(paths: List[Path], schematic: PangenomeSchematic):
         from_ids = np.searchsorted(keys, first_bins, side='left')
         to_ids   = np.searchsorted(keys, last_bins,  side='right')
 
-        # synchron loop over all arrays
-        for comp,fb,lb,fr,to in zip(schematic.components,first_bins,last_bins,from_ids,to_ids):
-            if fr < to:
-                padded = [empty] * (lb - fb + 1) # use references, not [] as new objects
-                for bin in values[fr:to]:
-                    padded[bin.bin_id - fb] = bin # do not create objects, simply link them
-                comp.matrix[p] = padded
+        mask = from_ids < to_ids
 
-    LOGGER.info("Populated Matrix per component per path.")
-    populate_component_occupancy(schematic)
+        comp_filtered = comp_array[mask]
+        from_filtered = from_ids[mask]
+        to_filtered   = to_ids[mask]
+
+        # synchron loop over all arrays
+        for comp,fr,to in zip(comp_filtered,from_filtered,to_filtered):
+            fb, lb = comp.first_bin, comp.last_bin
+            padded = [empty] * (lb - fb + 1) # use references, not [] as new objects
+            sliced = values[fr:to]
+            for bin in sliced:
+                padded[bin.bin_id - fb] = bin # do not create objects, simply link them
+            comp.matrix[p] = padded
+            comp.occupants[p] = any([bin.coverage > 0.1 for bin in sliced])
+
+    LOGGER.info("Populated Matrix and Occupancy per component per path.")
 
 
 def segment_matrix(matrix: List[Path], bin_width, cells_per_file, pangenome_length, parallel) -> PangenomeSchematic:
@@ -354,7 +354,7 @@ def main():
 
     parallel = Parallel(n_jobs=chunk_size, prefer="processes")
 
-    paths, pangenome_length, bin_width = JSONparser.parse(args.json_file, chunk_size, parallel)
+    paths, pangenome_length, bin_width = JSONparser.parse(args.json_file, chunk_size*2, parallel) # give 2x jobs to do
     schematic = segment_matrix(paths, bin_width, args.cells_per_file, pangenome_length, parallel)
 
     # this one spits out json and optionally other output files (fasta, ttl)
