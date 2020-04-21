@@ -18,6 +18,7 @@ from matrixcomponent.PangenomeSchematic import PangenomeSchematic
 import matrixcomponent.utils as utils
 
 import os
+import glob
 import logging
 import argparse
 import matrixcomponent
@@ -261,12 +262,10 @@ class SmartFormatter(argparse.HelpFormatter):
         return argparse.HelpFormatter._split_lines(self, text, width)
 
 
-def write_json_files(json_file, schematic: PangenomeSchematic):
-    partitions, bin2file_mapping = schematic.split(args.cells_per_file)
+def write_json_files(folder_path, schematic: PangenomeSchematic):
 
-    folder = osPath(json_file).parent
-    if args.output_folder:
-        folder = osPath(args.output_folder)
+    partitions, bin2file_mapping = schematic.split(args.cells_per_file)
+    folder = folder_path
     os.makedirs(folder, exist_ok=True)  # make directory for all files
 
     for part in partitions:
@@ -337,14 +336,17 @@ def get_arguments():
                         help='Tip: do not set this one to more than available CPU cores)')
 
     args = parser.parse_args()
+
     if not args.output_folder:
-        # directory with the same name as the json
-        args.output_folder = osPath(args.json_file).parent.joinpath(osPath(args.json_file).stem)
+        if args.json_file.endswith("*"):  # directory is user provided prefix
+            args.output_folder = args.json_file.split("*")[0]
+        else:  # directory is default name
+            args.output_folder = args.json_file.split(".w1")[0]
     else:
         args.output_folder = osPath(args.output_folder)
     os.makedirs(args.output_folder, exist_ok=True)
 
-    if (args.parallel_cores <= 0):
+    if args.parallel_cores <= 0:
         args.parallel_cores = os.cpu_count()
 
     return args
@@ -354,19 +356,32 @@ def main():
     global args
     args = get_arguments()
     setup_logging()
-    LOGGER.info(f'reading {osPath(args.json_file)}...\n')
-    paths, pangenome_length, bin_width = JSONparser.parse(args.json_file, args.parallel_cores)
-    schematic = segment_matrix(paths, bin_width, args.cells_per_file, pangenome_length)
-    del paths
-    write_json_files(args.output_folder, schematic)
-    if args.fasta:  # optional
-        write_fasta_files(args.fasta, args.output_folder, schematic)
+
+    if os.path.isdir(args.json_file) or args.json_file.endswith("*"):
+        files = glob.glob(str(osPath(args.json_file).parent) + "/*.w*.json")
+    else:
+        files = [args.json_file]
+
+    for json_file in files:
+        LOGGER.info(f'reading {osPath(json_file)}...\n')
+        paths, pangenome_length, bin_width = JSONparser.parse(json_file, args.parallel_cores)
+        schematic = segment_matrix(paths, bin_width, args.cells_per_file, pangenome_length)
+        del paths
+        path_name = json_file.split(".json")[0].split("/")[1]
+        folder_path = osPath(args.output_folder).joinpath(path_name)  # full path
+        write_json_files(folder_path, schematic)
+
+        if args.fasta and schematic.bin_width == 1:  # optional
+            write_fasta_files(args.fasta, folder_path, schematic)
 
 
 if __name__ == '__main__':
     main()
-#--json-file=data/run1.B1phi1.i1.seqwish.w100.json --cells-per-file=5000
-# --fasta=data/run1.B1phi1.i1.seqwish.fasta
 
-# python segmentation.py -j data/run1.B1phi1.i1.seqwish.w1.json -f data/run1.B1phi1.i1.seqwish.fasta --cells-per-file 25000
+"""
+--json-file=data/run1.B1phi1.i1.seqwish.w100.json --cells-per-file=5000
+--fasta=data/run1.B1phi1.i1.seqwish.fasta
+For multiple files, add '*' prefix e.g. -j data/run1.B1phi1.i1.seqwish*
+python segmentation.py -j data/run1.B1phi1.i1.seqwish.w1.json -f data/run1.B1phi1.i1.seqwish.fasta --cells-per-file 25000
+"""
 

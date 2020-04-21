@@ -1,4 +1,4 @@
-JSON_VERSION = 12  # This version added adjacent connectors in departures column
+JSON_VERSION = 13  # This version added batch file processing and bin width zooming
 ODGI_VERSION = 12
 
 import logging
