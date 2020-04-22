@@ -7,6 +7,7 @@ Component Segmentation Detection - Josiah and Joerg
   Python memory object model - Josiah
 Output format
 """
+import sys
 from typing import List, Tuple, Set, Dict
 from pathlib import Path as osPath, PurePath
 from datetime import datetime
@@ -18,7 +19,7 @@ from matrixcomponent.PangenomeSchematic import PangenomeSchematic
 import matrixcomponent.utils as utils
 
 import os
-import glob
+from glob import glob
 import logging
 import argparse
 import matrixcomponent
@@ -337,11 +338,15 @@ def get_arguments():
 
     args = parser.parse_args()
 
+    # file path logic for single or list of files with wildcard *
     if not args.output_folder:
         if args.json_file.endswith("*"):  # directory is user provided prefix
-            args.output_folder = args.json_file.split("*")[0]
-        else:  # directory is default name
-            args.output_folder = args.json_file.split(".w1")[0]
+            args.output_folder = args.json_file[:-1]
+        elif args.json_file.endswith(".json"):  # single json file
+            args.output_folder = osPath(args.json_file).parent.joinpath(osPath(args.json_file).stem)
+        else:
+            print("Please provide an --out-folder or end --json-file= prefix with a *", file=sys.stderr)
+            exit(1)
     else:
         args.output_folder = osPath(args.output_folder)
     os.makedirs(args.output_folder, exist_ok=True)
@@ -357,8 +362,9 @@ def main():
     args = get_arguments()
     setup_logging()
 
-    if os.path.isdir(args.json_file) or args.json_file.endswith("*"):
-        files = glob.glob(str(osPath(args.json_file).parent) + "/*.w*.json")
+    if args.json_file.endswith("*"):
+        files = glob(args.json_file + '.json')
+        print("===Input Files Found===\n", '\n'.join(files))
     else:
         files = [args.json_file]
 
@@ -367,7 +373,7 @@ def main():
         paths, pangenome_length, bin_width = JSONparser.parse(json_file, args.parallel_cores)
         schematic = segment_matrix(paths, bin_width, args.cells_per_file, pangenome_length)
         del paths
-        path_name = json_file.split(".json")[0].split("/")[1]
+        path_name = str(bin_width)
         folder_path = osPath(args.output_folder).joinpath(path_name)  # full path
         write_json_files(folder_path, schematic)
 
