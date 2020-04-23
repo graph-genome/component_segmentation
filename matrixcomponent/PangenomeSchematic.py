@@ -70,7 +70,9 @@ class PangenomeSchematic:
                                                these_comp[-1].last_bin, these_comp, self.path_names,
                                                self.total_nr_files, self.pangenome_length)
                 schematic.filename = self.filename(i)  # save for consistency IMPORTANT
-                schematic.fasta_filename = self.fasta_filename(i)
+
+                if fasta is not None:
+                    schematic.fasta_filename = self.fasta_filename(i)
 
                 p = folder.joinpath(schematic.filename)
                 with p.open('w') as fpgh9:
