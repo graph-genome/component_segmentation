@@ -1,6 +1,7 @@
 .idea
 data/
 matrixcomponent/data/
+*.log
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
