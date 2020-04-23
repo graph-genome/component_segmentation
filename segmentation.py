@@ -7,8 +7,10 @@ Component Segmentation Detection - Josiah and Joerg
   Python memory object model - Josiah
 Output format
 """
+
 from typing import List, Tuple, Set
 from pathlib import Path as osPath
+import sys
 from datetime import datetime
 from DNASkittleUtils.Contigs import read_contigs
 from joblib import Parallel
@@ -18,6 +20,7 @@ from matrixcomponent.PangenomeSchematic import PangenomeSchematic
 import matrixcomponent.utils as utils
 
 import os
+from glob import glob
 import logging
 import argparse
 import matrixcomponent
@@ -328,14 +331,21 @@ def get_arguments():
                         help='Tip: do not set this one to more than available CPU cores)')
 
     args = parser.parse_args()
+
+    # file path logic for single or list of files with wildcard *
     if not args.output_folder:
-        # directory with the same name as the json
-        args.output_folder = osPath(args.json_file).parent.joinpath(osPath(args.json_file).stem)
+        if args.json_file.endswith("*"):  # directory is user provided prefix
+            args.output_folder = args.json_file[:-1]
+        elif args.json_file.endswith(".json"):  # single json file
+            args.output_folder = osPath(args.json_file).parent.joinpath(osPath(args.json_file).stem)
+        else:
+            print("Please provide an --out-folder or end --json-file= prefix with a *", file=sys.stderr)
+            exit(1)
     else:
         args.output_folder = osPath(args.output_folder)
     os.makedirs(args.output_folder, exist_ok=True)
 
-    if (args.parallel_cores <= 0):
+    if args.parallel_cores <= 0:
         args.parallel_cores = os.cpu_count()
 
     return args

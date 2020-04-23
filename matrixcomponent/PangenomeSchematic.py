@@ -24,6 +24,7 @@ class PangenomeSchematic:
     path_names: List[str]
     total_nr_files: int
     pangenome_length: int
+    file_dict = {}  # dict for bin2file.json
 
     def json_dump(self):
         def dumper(obj):
@@ -34,6 +35,7 @@ class PangenomeSchematic:
                 for i in obj.participants:
                     bools[i] = True
                 return {'upstream':obj.upstream, 'downstream':obj.downstream, 'participants':bools}
+
             if isinstance(obj, set):
                 return list(obj)
             try:
@@ -124,15 +126,16 @@ class PangenomeSchematic:
         return f'seq_chunk{self.pad_file_nr(nth_file)}_bin{self.bin_width}.fa'
 
     def write_index_file(self, folder, bin2file_mapping):
-        """Also write the file2bin mapping into a master json file
-        eventually, this could have one list per bin size,
-        with all bin size integrated into the same folder"""
-        index_file = folder.joinpath(f'bin2file.json')
+
         file_contents = {'bin_width': self.bin_width,
-                         'json_version': JSON_VERSION,
                          'last_bin': self.last_bin,
-                         'pangenome_length': self.pangenome_length,
                          'files': bin2file_mapping}
-        with index_file.open('w') as out:
-            out.write(json.dumps(file_contents, indent=4))
-            print("Saved file2bin mapping to", index_file)
+        self.file_dict[f'{self.bin_width}'] = file_contents
+
+        master_index_file = folder.parent.joinpath(f'bin2file.json')
+        master_contents = {'json_version': JSON_VERSION,
+                           'pangenome_length': self.pangenome_length,
+                           'zoom_levels': OrderedDict(sorted(self.file_dict.items(), reverse=True))}
+        with master_index_file.open('w') as f:
+            f.write(json.dumps(master_contents, indent=4))
+            print("Saved file2bin mapping to", master_index_file)

@@ -21,7 +21,7 @@ def process_path(line=None):
     if "odgi_version" in path:
         # this is the header
         assert path["odgi_version"] == ODGI_VERSION, f"Expecting version {ODGI_VERSION}." \
-                                                     f"This version added the header with pangenome nucleotide count."
+                                                     f" This version added the nucleotide ranges for each bin for each path."
         print(f"Found file with {path['pangenome_length']} nucleotides in the pangenome and"
              f" a {path['bin_width']}bp bin width.", flush=True)
         pangenome_length = path['pangenome_length']
