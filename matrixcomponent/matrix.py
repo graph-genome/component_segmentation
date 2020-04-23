@@ -5,31 +5,26 @@ from typing import List
 import numpy
 from sortedcontainers import SortedDict
 
+
+@dataclass
+class Bin:
+    bin_id: int
+    coverage: float
+    inversion: float
+    nucleotide_ranges: List[List[int]]
+    sequence: str = ''
+
 ## Path is all for input files
 
 
 class Path:
     name: str
-    bins: 'SortedDict[int,Path.Bin]'
+    bins: 'SortedDict[int,Bin]'
     links: 'numpy.array'
 
     def __init__(self, name=''):
         self.name = name
-        self.bins = SortedDict({})  # Bin
-
-    @dataclass
-    class Bin:
-        bin_id: int
-        coverage: float
-        inversion_rate: float
-        nucleotide_ranges: List[List[int]]
-        sequence: str = ''
-
-    class LinkEntry:
-        def __init__(self, upstream, downstream):
-            self.upstream = upstream
-            self.downstream = downstream
-            # TODO: self.insert_size will require a topology search to find this
+        self.bins = SortedDict()  # Bin
 
 
 ## For Output to RDF  ###########
@@ -37,15 +32,8 @@ class Path:
 class LinkColumn:
     upstream: int
     downstream: int
-    participants: List[bool]  # in order path_names, true if the individual participates in this LinkColumn
-    # participants depends on row ordering of path names, optimized precompute for display
-
-
-@dataclass
-class Bin:
-    coverage: float
-    inversion: float
-    nucleotide_ranges: List[List[int]]
+    num_paths: int
+    participants: 'numpy.array' # ids of participated path_names
 
 
 class Component:

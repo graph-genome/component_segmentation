@@ -7,14 +7,15 @@ Component Segmentation Detection - Josiah and Joerg
   Python memory object model - Josiah
 Output format
 """
-import sys
-from typing import List, Tuple, Set, Dict
-from pathlib import Path as osPath, PurePath
-from datetime import datetime
-from sortedcontainers import SortedDict
-from DNASkittleUtils.Contigs import Contig, read_contigs, write_contigs_to_file
 
-from matrixcomponent.matrix import Path, Component, LinkColumn, Bin
+from typing import List, Tuple, Set
+from pathlib import Path as osPath
+import sys
+from datetime import datetime
+from DNASkittleUtils.Contigs import read_contigs
+from joblib import Parallel
+
+from matrixcomponent.matrix import Path, Component, LinkColumn
 from matrixcomponent.PangenomeSchematic import PangenomeSchematic
 import matrixcomponent.utils as utils
 
@@ -27,52 +28,79 @@ import matrixcomponent
 import matrixcomponent.JSONparser as JSONparser
 
 import numpy as np
-import pandas as pd
 
 MAX_COMPONENT_SIZE = 100  # automatic calculation from cells_per_file did not go well
 LOGGER = logging.getLogger(__name__)
 """logging.Logger: The logger for this module"""
 
 
-def populate_component_occupancy(schematic: PangenomeSchematic):
-    for component in schematic.components:
-        # are matrix paths in the same order as schematic.path_names?
-        # side effect instead of return
-        component.occupants = [any([bin.coverage > 0.1 for bin in bins if bin])
-                               for bins in component.matrix]
-    print("Populated Occupancy per component per path.")
-
-
 def populate_component_matrix(paths: List[Path], schematic: PangenomeSchematic):
     # the loops are 1) paths, and then 2) schematic.components
     # paths are in the same order as schematic.path_names
-    for i, path in enumerate(paths):
+    first_bins = np.asarray([component.first_bin for component in schematic.components])
+    last_bins  = np.asarray([component.last_bin for component in schematic.components])
+    comp_array = np.asarray([component for component in schematic.components])
+
+    empty = []
+
+    # preallocate to get rid of list.append()
+    for component in schematic.components:
+        component.matrix = [empty] * len(paths)
+        component.occupants = [False] * len(paths)
+
+    for p,path in enumerate(paths):
         sorted_bins = path.bins
+        keys = np.asarray(sorted_bins.keys())
         values = list(sorted_bins.values())
-        for component in schematic.components:
-            from_id = sorted_bins.bisect_left (component.first_bin)
-            to_id   = sorted_bins.bisect_right(component.last_bin)
-            relevant = values[from_id:to_id]
-            padded = []
-            if relevant:
-                padded = [[]] * (component.last_bin - component.first_bin + 1)
-                for bin in relevant:
-                    padded[bin.bin_id - component.first_bin] =  \
-                        Bin(bin.coverage, bin.inversion_rate, bin.nucleotide_ranges)
-            component.matrix.append(padded)  # ensure there's always 1 entry for each path
-    print("Populated Matrix per component per path.")
-    populate_component_occupancy(schematic)
+
+        # Numpy vectorized binary search
+        from_ids = np.searchsorted(keys, first_bins, side='left')
+        to_ids   = np.searchsorted(keys, last_bins,  side='right')
+
+        # the case "from+1 == to". Here we can save lots of unnecessary slicing and looping
+        mask = from_ids+1 == to_ids
+        if np.any(mask):
+            comp_filtered = comp_array[mask]
+            from_filtered = from_ids[mask]
+
+            # synchron loop over all arrays
+            # this case enforces first_bin == last_bin --- comp.matrix[p] has a single element
+            for comp, fr in zip(comp_filtered, from_filtered):
+                bin = values[fr]
+                comp.matrix[p] = [bin]
+                comp.occupants[p] = bin.coverage > 0.1
 
 
-def segment_matrix(matrix: List[Path], bin_width, cells_per_file, pangenome_length) -> PangenomeSchematic:
+        # and a general one "from+1 < to"
+        mask = from_ids+1 < to_ids
+        if np.any(mask):
+            comp_filtered = comp_array[mask]
+            from_filtered = from_ids[mask]
+            to_filtered   = to_ids[mask]
+
+            # synchron loop over all arrays
+            for comp,fr,to in zip(comp_filtered,from_filtered,to_filtered):
+                fb, lb = comp.first_bin, comp.last_bin
+                padded = [empty] * (lb - fb + 1) # use references, not [] as new objects
+                sliced = values[fr:to]
+                for bin in sliced:
+                    padded[bin.bin_id - fb] = bin # do not create objects, simply link them
+                comp.matrix[p] = padded
+                comp.occupants[p] = any([bin.coverage > 0.1 for bin in sliced])
+
+    LOGGER.info("Populated Matrix and Occupancy per component per path.")
+
+
+def segment_matrix(matrix: List[Path], bin_width, cells_per_file, pangenome_length, parallel) -> PangenomeSchematic:
     from matrixcomponent import JSON_VERSION
-    print(f"Starting Segmentation process on {len(matrix)} Paths.")
+    LOGGER.info(f"Starting Segmentation process on {len(matrix)} Paths.")
     schematic = PangenomeSchematic(JSON_VERSION,
                                    bin_width,
                                    1,
                                    1,
                                    [], [p.name for p in matrix], 1, pangenome_length)
     connections, dividers = dividers_with_max_size(matrix, cells_per_file)
+    LOGGER.info(f"Created dividers")
 
     component_by_first_bin = {}
     component_by_last_bin = {}
@@ -85,26 +113,24 @@ def segment_matrix(matrix: List[Path], bin_width, cells_per_file, pangenome_leng
             component_by_first_bin[start_pos] = current
             component_by_last_bin[valid_start - 1] = current
         start_pos = valid_start
-    print(f"Created {len(schematic.components)} components")
+    LOGGER.info(f"Created {len(schematic.components)} components")
 
     # populate Component occupancy per Path
     populate_component_matrix(matrix, schematic)
+    LOGGER.info(f"populated matrix")
 
-    connections_array = connections.to_numpy()
-    groups = utils.find_groups(connections_array[:, :2])
-    path_indices = connections.path_index.to_numpy()
+    path_indices = connections['path_index']
+    connections_from = connections['from']
+    connections_to   = connections['to']
+    groups = utils.find_groups(connections_from, connections_to)
 
-    participants_mask = np.zeros(len(schematic.path_names), dtype=bool)
+    num_paths = len(schematic.path_names)
 
     nLinkColumns = 0
     for (start, end) in groups:
-        row = connections_array[start]
-        src, dst = int(row[0]), int(row[1])
+        src, dst = int(connections_from[start]), int(connections_to[start]) # important to cast to int()
 
-        participants_mask[:] = False
-        participants_mask[path_indices[start:end]] = True
-        phase_dots = participants_mask.tolist()
-        link_column = LinkColumn(src, dst, participants=phase_dots)
+        link_column = LinkColumn(src, dst, participants=path_indices[start:end], num_paths=num_paths)
 
         src_component = component_by_last_bin.get(src)
         dst_component = component_by_first_bin.get(dst)
@@ -121,7 +147,7 @@ def segment_matrix(matrix: List[Path], bin_width, cells_per_file, pangenome_leng
         component, next_component = schematic.components[i],schematic.components[i+1]
         add_adjacent_connector_column(component, next_component, schematic)
 
-    print(f"Created {nLinkColumns} LinkColumns")
+    LOGGER.info(f"Created {nLinkColumns} LinkColumns")
 
     return schematic
 
@@ -149,29 +175,35 @@ def add_adjacent_connector_column(component, next_component, schematic):
     Use logic to decide on which rows need adjacent connectors
     Start with the easy subtractive case of occupancy - departures and move to more complex,
     multiple copy cases."""
-    adjacents = []
-    for row in range(len(schematic.path_names)):
-        connection_exists = False
-        if component.occupants[row] and next_component.occupants[row]:  # occupant present
-            # n_arrivals = sum([column.participants[row] for column in component.arrivals])
-            departed = sum([column.participants[row] for column in component.departures])
-            # connection_exists = n_arrivals + 1 > departed
-            connection_exists = not departed  # didn't depart
-        adjacents.append(connection_exists)
+
+    ids = np.arange(len(schematic.path_names))
+    mask_component = np.asarray(component.occupants, dtype=bool)
+    mask_next_component = np.asarray(next_component.occupants, dtype=bool)
+
+    filtered_rows = ids[mask_component & mask_next_component]
+    adjacents = filtered_rows # we take all the filtered IDs if there are no departures
+
+    if len(filtered_rows) > 0 and len(component.departures) > 0: # potentially there's work to do
+        ids = np.concatenate([column.participants for column in component.departures])
+        isin = np.isin(filtered_rows, ids, invert=True)
+        adjacents = filtered_rows[isin]
+
     component.departures.append(LinkColumn(  # LinkColumn for adjacents
         component.last_bin,
         component.last_bin + 1,
-        participants=adjacents))
+        participants=np.asarray(adjacents).astype(dtype='int32'),
+        num_paths=len(schematic.path_names)))
 
 
-def find_dividers(matrix: List[Path]) -> Tuple[pd.DataFrame, Set[int]]:
+def find_dividers(matrix: List[Path]) -> Tuple[dict, Set[int]]:
     max_bin = 1
 
     self_loops = []  # track self loops just in case component gets cut in half
-    connection_dfs = []  # pandas dataframe with columns (from, to, path [name])
+    connection_dfs = []
 
+    n_remaining_links = 0
     for i, path in enumerate(matrix):
-        bin_ids = np.array(path.bins.keys()) # already sorted
+        bin_ids = np.asarray(path.bins.keys()) # already sorted
         if bin_ids.size > 0:
             max_bin = max(max_bin, int(bin_ids[-1]))
 
@@ -193,13 +225,9 @@ def find_dividers(matrix: List[Path]) -> Tuple[pd.DataFrame, Set[int]]:
         if path_dividers.size == 0:
             continue
 
-        df = pd.DataFrame.from_dict({
-            'from': path_dividers[:, 0],  # aka upstream
-            'to': path_dividers[:, 1],    # aka downstream
-            'path_index': i
-        })
-
-        connection_dfs.append(df)
+        n_remaining_links = n_remaining_links + len(path_dividers)
+        arr = np.stack( (path_dividers[:, 0], path_dividers[:, 1], i*np.ones(len(path_dividers)).astype(dtype='int32')) )
+        connection_dfs.append(arr)
 
         # <old comments applicable to each divider>
         #
@@ -211,28 +239,24 @@ def find_dividers(matrix: List[Path]) -> Tuple[pd.DataFrame, Set[int]]:
         # Tolerable range?
         # Stack up others using the same LinkColumn
 
-    df = pd.concat(connection_dfs)
-    n_remaining_links = len(df)
-
-    df = utils.sort_and_drop_duplicates(df)
-    n_uniq_links = len(df)
+    df = utils.sort_and_drop_duplicates(connection_dfs, shift=len(bin(max_bin)) - 2, path_shift=len(bin(len(matrix))) - 2)
+    n_uniq_links = len(df['path_index'])
 
     # all start positions of components
     # (max_bin + 1) is end of pangenome
-    dividers = np.concatenate([[1, max_bin + 1], df["from"] + 1, df["to"]])
+    dividers = np.concatenate([np.asarray([1, max_bin + 1], dtype='int32'), df["from"] + 1, df["to"]])
     dividers = np.unique(dividers).tolist()
 
-    print(f"Largest bin_id was {max_bin}\n"
-          f"Found {len(dividers)} dividers.")
+    LOGGER.info(f"Largest bin_id was {max_bin}; Found {len(dividers)} dividers.")
 
     if self_loops:
         n_self_loops = np.unique(np.concatenate(self_loops), axis=0).shape[0]
-        print(f"Eliminated {n_self_loops} self-loops")
+        LOGGER.info(f"Eliminated {n_self_loops} self-loops")
 
     n_links = sum([len(p.links) for p in matrix])
-    print(f"Input has {n_links} listed Links.  "
+    LOGGER.info(f"Input has {n_links} listed Links.  "
           f"Segmentation eliminated {(1-n_remaining_links/n_links)*100}% of them.")
-    print(f"Found {n_uniq_links} unique links")
+    LOGGER.info(f"Found {n_uniq_links} unique links")
 
     return df, dividers
 
@@ -263,31 +287,16 @@ class SmartFormatter(argparse.HelpFormatter):
         return argparse.HelpFormatter._split_lines(self, text, width)
 
 
-def write_json_files(folder_path, schematic: PangenomeSchematic):
-
-    partitions, bin2file_mapping = schematic.split(args.cells_per_file)
-    folder = folder_path
+def write_files(folder, odgi_fasta: Path, schematic: PangenomeSchematic):
     os.makedirs(folder, exist_ok=True)  # make directory for all files
 
-    for part in partitions:
-        p = folder.joinpath(part.filename)
-        with p.open('w') as fpgh9:
-            fpgh9.write(part.json_dump())
-        print("Saved results to", p)
+    fasta = None
+    if odgi_fasta:
+        fasta = read_contigs(odgi_fasta)[0]
+
+    bin2file_mapping = schematic.split_and_write(args.cells_per_file, folder, fasta)
 
     schematic.write_index_file(folder, bin2file_mapping)
-
-
-def write_fasta_files(odgi_fasta, output_folder: Path, schematic: PangenomeSchematic):
-    partitions, bin2file_mapping = schematic.split(args.cells_per_file)
-    fasta = read_contigs(odgi_fasta)[0]
-    for part in partitions:
-        x = part.bin_width
-        fa_first, fa_last = (part.first_bin * x), ((part.last_bin + 1) * x)
-        header = f"first_bin: {part.first_bin} " + f"last_bin: {part.last_bin}"
-        chunk = [Contig(header, fasta.seq[fa_first:fa_last])]
-        c = PurePath(output_folder).joinpath(part.fasta_filename)
-        write_contigs_to_file(c, chunk)
 
 
 def get_arguments():
@@ -361,33 +370,43 @@ def main():
     global args
     args = get_arguments()
     setup_logging()
+    LOGGER.info(f'reading {osPath(args.json_file)}...\n')
 
-    if args.json_file.endswith("*"):
-        files = glob(args.json_file + '.json')
-        print("===Input Files Found===\n", '\n'.join(files))
+    if args.parallel_cores > 0:
+        chunk_size = args.parallel_cores
     else:
-        files = [args.json_file]
+        chunk_size = os.cpu_count()
 
-    for json_file in files:
-        LOGGER.info(f'reading {osPath(json_file)}...\n')
-        paths, pangenome_length, bin_width = JSONparser.parse(json_file, args.parallel_cores)
-        schematic = segment_matrix(paths, bin_width, args.cells_per_file, pangenome_length)
-        del paths
-        path_name = str(bin_width)
-        folder_path = osPath(args.output_folder).joinpath(path_name)  # full path
-        write_json_files(folder_path, schematic)
+    parallel = Parallel(n_jobs=chunk_size, prefer="processes")
 
-        if args.fasta and schematic.bin_width == 1:  # optional
-            write_fasta_files(args.fasta, folder_path, schematic)
+    paths, pangenome_length, bin_width = JSONparser.parse(args.json_file, chunk_size*2, parallel) # give 2x jobs to do
+    schematic = segment_matrix(paths, bin_width, args.cells_per_file, pangenome_length, parallel)
 
+    # this one spits out json and optionally other output files (fasta, ttl)
+    write_files(args.output_folder, args.fasta, schematic)
+
+    LOGGER.info("Finished processing the file " + args.json_file)
 
 if __name__ == '__main__':
+    import atexit
+    import gc
+    import psutil
+
+    # https://instagram-engineering.com/dismissing-python-garbage-collection-at-instagram-4dca40b29172
+    # gc.disable() doesn't work, because some random 3rd-party library will
+    # enable it back implicitly.
+    gc.set_threshold(0)
+    # Suicide immediately after other atexit functions finishes.
+    # CPython will do a bunch of cleanups in Py_Finalize which
+    # will again cause Copy-on-Write, including a final GC
+    atexit.register(os._exit, 0)
+
     main()
 
-"""
---json-file=data/run1.B1phi1.i1.seqwish.w100.json --cells-per-file=5000
---fasta=data/run1.B1phi1.i1.seqwish.fasta
-For multiple files, add '*' prefix e.g. -j data/run1.B1phi1.i1.seqwish*
-python segmentation.py -j data/run1.B1phi1.i1.seqwish.w1.json -f data/run1.B1phi1.i1.seqwish.fasta --cells-per-file 25000
-"""
+    # force kill the child processes
+    parent = psutil.Process(os.getpid())
+    for child in parent.children(recursive=True):
+        child.kill()
 
+#--json-file=data/run1.B1phi1.i1.seqwish.w100.json --cells-per-file=5000
+# --fasta=data/run1.B1phi1.i1.seqwish.fasta

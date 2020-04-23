@@ -1,4 +1,5 @@
 import json
+from collections import OrderedDict
 from statistics import mean
 
 import math
@@ -10,9 +11,9 @@ from typing import List
 from dataclasses import dataclass
 
 from matrixcomponent import JSON_VERSION
-from matrixcomponent.matrix import Component, Bin
-from collections import OrderedDict
+from matrixcomponent.matrix import Component, Bin, LinkColumn
 
+from DNASkittleUtils.Contigs import Contig, write_contigs_to_file
 
 @dataclass
 class PangenomeSchematic:
@@ -30,6 +31,12 @@ class PangenomeSchematic:
         def dumper(obj):
             if isinstance(obj, Bin):  # should be in Bin class def
                 return [obj.coverage, obj.inversion, obj.nucleotide_ranges]
+            if isinstance(obj, LinkColumn): # todo: get rid of booleans once the JS side can digest path_names ids
+                bools = [False] * obj.num_paths
+                for i in obj.participants:
+                    bools[i] = True
+                return {'upstream':obj.upstream, 'downstream':obj.downstream, 'participants':bools}
+
             if isinstance(obj, set):
                 return list(obj)
             try:
@@ -43,7 +50,7 @@ class PangenomeSchematic:
         self.first_bin = 1  # these have not been properly initialized
         self.last_bin = self.components[-1].last_bin
 
-    def split(self, cells_per_file):
+    def split_and_write(self, cells_per_file, folder, fasta : Contig):
         """Splits one Schematic into multiple files with their own
         unique first and last_bin based on the volume of data desired per
         file specified by cells_per_file.  """
@@ -54,7 +61,7 @@ class PangenomeSchematic:
 
         # variables cut and end_cut are componentIDs
         # binIDs are in components.{first,last}_bin
-        partitions, bin2file_mapping = [], []
+        bin2file_mapping = []
         for i, cut in enumerate(cut_points[:-1]):
             end_cut = cut_points[i + 1]
             these_comp = self.components[cut:end_cut]
@@ -63,18 +70,27 @@ class PangenomeSchematic:
                                                these_comp[-1].last_bin, these_comp, self.path_names,
                                                self.total_nr_files, self.pangenome_length)
                 schematic.filename = self.filename(i)  # save for consistency IMPORTANT
-                partitions.append(schematic)
-                if schematic.bin_width == 1:
+
+                if fasta is not None:
                     schematic.fasta_filename = self.fasta_filename(i)
-                    bin2file_mapping.append({"file": schematic.filename,
-                                             "fasta": schematic.fasta_filename,
-                                             "first_bin": schematic.first_bin,
-                                             "last_bin": schematic.last_bin})
-                else:
-                    bin2file_mapping.append({"file": schematic.filename,
-                                             "first_bin": schematic.first_bin,
-                                             "last_bin": schematic.last_bin})
-        return partitions, bin2file_mapping
+
+                p = folder.joinpath(schematic.filename)
+                with p.open('w') as fpgh9:
+                    fpgh9.write(schematic.json_dump())
+
+                if fasta is not None:
+                    x = schematic.bin_width
+                    fa_first, fa_last = (schematic.first_bin * x), ((schematic.last_bin + 1) * x)
+                    header = f"first_bin: {schematic.first_bin} " + f"last_bin: {schematic.last_bin}"
+                    chunk = [Contig(header, fasta.seq[fa_first:fa_last])]
+                    c = folder.joinpath(schematic.fasta_filename)
+                    write_contigs_to_file(c, chunk)
+
+                bin2file_mapping.append({"file": schematic.filename,
+                                         "first_bin": schematic.first_bin,
+                                         "last_bin": schematic.last_bin})
+
+        return bin2file_mapping
 
     def find_cut_points_in_file_split(self, bins_per_file, column_counts):
         """Use binary search bisect to find the component boundaries closest to

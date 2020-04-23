@@ -1,12 +1,10 @@
 import json
 import logging
 
-import os
-from joblib import Parallel, delayed
+from joblib import delayed
 
 import matrixcomponent.matrix as matrix
 from matrixcomponent import ODGI_VERSION
-from itertools import islice
 
 import numpy as np
 
@@ -39,41 +37,51 @@ def process_path(line=None):
             if type(ranges) is not list and len(b) >= 6:
                 ranges = [[b[4], b[5]]]
 
-            bin = p.Bin(b[0], b[1], b[2], ranges)
+            bin = matrix.Bin(b[0], b[1], b[2], ranges)
             p.bins.setdefault(bin.bin_id, bin)
 
-        p.links = np.array(path['links'])
+        p.links = np.asarray(path['links'], dtype='int32')
 
     return [pangenome_length, bin_width, p]
 
 
-def parse(file, parallel_cores):
-    paths = []
-    pangenome_length = 0
-    bin_width = 0
-
-    if parallel_cores > 0:
-        chunk_size = parallel_cores
+def do_processing(parallel, lines, pangenome_length, bin_width, paths):
+    if parallel is None:
+        results = [process_path(line) for line in lines]  # serial version
     else:
-        chunk_size = os.cpu_count()
+        results = parallel(delayed(process_path)(line) for line in lines)
 
-    parallel = Parallel(n_jobs=chunk_size, prefer="processes")
+    for res in results:
+        plen, bwidth, p = res[0], res[1], res[2]
+        if plen > -1:
+            pangenome_length[0] = plen
+        if bwidth > -1:
+            bin_width[0] = bwidth
+        if p is not None:
+            paths.append(p)
+
+
+def parse(file, chunk_size, parallel):
+    paths = []
+    pangenome_length = [0]
+    bin_width = [0]
+
+    lines = []
     with open(file) as f:
-        while True:
-            lines = list(islice(f, chunk_size))
-            if len(lines) == 0:
-                break
+        for line in f:
+            # early filtering saves time
+            if line.startswith("odgi", 2, 10) or line.startswith("path", 2, 10):
+                lines.append(line)
 
-            # use this one for serial version
-            # results = [process_path(line) for line in lines]
-            results = parallel(delayed(process_path)(line) for line in lines)
-            for res in results:
-                plen, bwidth, p = res[0], res[1], res[2]
-                if plen > -1:
-                    pangenome_length = plen
-                if bwidth > -1:
-                    bin_width = bwidth
-                if p is not None:
-                    paths.append(p)
+            # wait until there's enough things to do
+            if len(lines) < chunk_size:
+                continue
 
-    return (paths, pangenome_length, bin_width)
+            do_processing(parallel, lines, pangenome_length, bin_width, paths)
+            lines.clear() # start collecting the next block
+
+# and process the leftovers
+    if len(lines) > 0:
+        do_processing(parallel, lines, pangenome_length, bin_width, paths)
+
+    return (paths, pangenome_length[0], bin_width[0])
