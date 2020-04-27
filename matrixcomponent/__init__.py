@@ -1,4 +1,4 @@
-JSON_VERSION = 13  # This version added batch file processing and bin width zooming
+JSON_VERSION = 14  # This version adds prerender x coordinates for all components
 ODGI_VERSION = 12
 
 import logging
