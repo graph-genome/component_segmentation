@@ -86,7 +86,13 @@ class PangenomeSchematic:
                     c = folder.joinpath(schematic.fasta_filename)
                     write_contigs_to_file(c, chunk)
 
-                bin2file_mapping.append({"file": schematic.filename,
+                if schematic.bin_width == 1:
+                    bin2file_mapping.append({"file": schematic.filename,
+                                             "fasta": schematic.fasta_filename,
+                                             "first_bin": schematic.first_bin,
+                                             "last_bin": schematic.last_bin})
+                else:
+                    bin2file_mapping.append({"file": schematic.filename,
                                          "first_bin": schematic.first_bin,
                                          "last_bin": schematic.last_bin})
 

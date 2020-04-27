@@ -370,7 +370,6 @@ def main():
     global args
     args = get_arguments()
     setup_logging()
-    LOGGER.info(f'reading {osPath(args.json_file)}...\n')
 
     if args.parallel_cores > 0:
         chunk_size = args.parallel_cores
@@ -379,18 +378,39 @@ def main():
 
     parallel = Parallel(n_jobs=chunk_size, prefer="processes")
 
-    paths, pangenome_length, bin_width = JSONparser.parse(args.json_file, chunk_size*2, parallel) # give 2x jobs to do
-    schematic = segment_matrix(paths, bin_width, args.cells_per_file, pangenome_length, parallel)
+    if args.json_file.endswith("*"):
+        files = glob(args.json_file + '.json')
+        print("===Input Files Found===\n", '\n'.join(files))
+    else:
+        files = [args.json_file]
 
-    # this one spits out json and optionally other output files (fasta, ttl)
-    write_files(args.output_folder, args.fasta, schematic)
+    for json_file in files:
+        LOGGER.info(f'reading {osPath(json_file)}...\n')
+        paths, pangenome_length, bin_width = JSONparser.parse(json_file, chunk_size*2, parallel)  # give 2x jobs to do
+        schematic = segment_matrix(paths, bin_width, args.cells_per_file, pangenome_length, parallel)
 
-    LOGGER.info("Finished processing the file " + args.json_file)
+        # this one spits out json and optionally other output files (fasta, ttl)
+        path_name = str(bin_width)
+        folder_path = osPath(args.output_folder).joinpath(path_name)  # full path
+        write_files(folder_path, args.fasta, schematic)
+
+        LOGGER.info("Finished processing the file " + json_file)
+
+
+def graceful_exit():
+    import psutil
+
+    # force kill the child processes
+    parent = psutil.Process(os.getpid())
+    for child in parent.children(recursive=True):
+        child.kill()
+
+    os._exit(0)
+
 
 if __name__ == '__main__':
     import atexit
     import gc
-    import psutil
 
     # https://instagram-engineering.com/dismissing-python-garbage-collection-at-instagram-4dca40b29172
     # gc.disable() doesn't work, because some random 3rd-party library will
@@ -399,14 +419,13 @@ if __name__ == '__main__':
     # Suicide immediately after other atexit functions finishes.
     # CPython will do a bunch of cleanups in Py_Finalize which
     # will again cause Copy-on-Write, including a final GC
-    atexit.register(os._exit, 0)
+    atexit.register(graceful_exit)
 
     main()
 
-    # force kill the child processes
-    parent = psutil.Process(os.getpid())
-    for child in parent.children(recursive=True):
-        child.kill()
-
-#--json-file=data/run1.B1phi1.i1.seqwish.w100.json --cells-per-file=5000
-# --fasta=data/run1.B1phi1.i1.seqwish.fasta
+"""
+--json-file=data/run1.B1phi1.i1.seqwish.w100.json --cells-per-file=5000
+--fasta=data/run1.B1phi1.i1.seqwish.fasta
+For multiple files, add '*' prefix e.g. -j data/run1.B1phi1.i1.seqwish*
+python segmentation.py -j data/run1.B1phi1.i1.seqwish.w1.json -f data/run1.B1phi1.i1.seqwish.fasta --cells-per-file 25000
+"""
