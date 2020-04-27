@@ -85,10 +85,8 @@ class PangenomeSchematic:
                                  # extra columns beyond last_bin - first_bin
                                  "link_count": schematic.n_links()}
                 if schematic.bin_width == 1:
-                    schematic.fasta_filename = self.fasta_filename(i)
-                    chunk_summary["fasta"] = schematic.fasta_filename
+                    chunk_summary["fasta"] = self.fasta_filename(i)
                 bin2file_mapping.append(chunk_summary)
-
 
                 p = folder.joinpath(schematic.filename)
                 with p.open('w') as fpgh9:
@@ -99,7 +97,7 @@ class PangenomeSchematic:
                     fa_first, fa_last = (schematic.first_bin * x), ((schematic.last_bin + 1) * x)
                     header = f"first_bin: {schematic.first_bin} " + f"last_bin: {schematic.last_bin}"
                     chunk = [Contig(header, fasta.seq[fa_first:fa_last])]
-                    c = folder.joinpath(schematic.fasta_filename)
+                    c = folder.joinpath(schematic.fasta_filename(i))
                     write_contigs_to_file(c, chunk)
 
         return bin2file_mapping
