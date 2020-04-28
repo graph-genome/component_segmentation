@@ -67,6 +67,7 @@ def populate_component_matrix(paths: List[Path], schematic: PangenomeSchematic):
             # this case enforces first_bin == last_bin --- comp.matrix[p] has a single element
             for comp, fr in zip(comp_filtered, from_filtered):
                 bin = values[fr]
+                bin.path_id = p # save for later
                 comp.matrix[p] = [bin]
                 comp.occupants[p] = bin.coverage > 0.1
 
@@ -287,14 +288,16 @@ class SmartFormatter(argparse.HelpFormatter):
         return argparse.HelpFormatter._split_lines(self, text, width)
 
 
-def write_files(folder, odgi_fasta: Path, schematic: PangenomeSchematic):
+def write_files(folder, ontology_folder, odgi_fasta: Path, schematic: PangenomeSchematic):
     os.makedirs(folder, exist_ok=True)  # make directory for all files
+    if ontology_folder:
+        os.makedirs(ontology_folder, exist_ok=True)
 
     fasta = None
     if odgi_fasta:
         fasta = read_contigs(odgi_fasta)[0]
 
-    bin2file_mapping = schematic.split_and_write(args.cells_per_file, folder, fasta)
+    bin2file_mapping = schematic.split_and_write(args.cells_per_file, folder, fasta, ontology_folder)
 
     schematic.write_index_file(folder, bin2file_mapping)
 
@@ -345,6 +348,12 @@ def get_arguments():
                         type=int,
                         help='Tip: do not set this one to more than available CPU cores)')
 
+    parser.add_argument('-t', '--do-ttl',
+                        dest='do_ttl',
+                        default=False,
+                        type=bool,
+                        help='do the ontology turtle output or not)')
+
     args = parser.parse_args()
 
     # file path logic for single or list of files with wildcard *
@@ -392,7 +401,12 @@ def main():
         # this one spits out json and optionally other output files (fasta, ttl)
         path_name = str(bin_width)
         folder_path = osPath(args.output_folder).joinpath(path_name)  # full path
-        write_files(folder_path, args.fasta, schematic)
+
+        ontology_folder_path = None
+        if args.do_ttl:
+            ontology_folder_path = osPath(args.output_folder).joinpath(path_name + '-turtle')
+
+        write_files(folder_path, ontology_folder_path, args.fasta, schematic)
 
         LOGGER.info("Finished processing the file " + json_file)
 

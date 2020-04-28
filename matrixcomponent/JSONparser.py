@@ -37,7 +37,7 @@ def process_path(line=None):
             if type(ranges) is not list and len(b) >= 6:
                 ranges = [[b[4], b[5]]]
 
-            bin = matrix.Bin(b[0], b[1], b[2], ranges)
+            bin = matrix.Bin(b[0], b[1], b[2], ranges, 0) # path_id = 0
             p.bins.setdefault(bin.bin_id, bin)
 
         p.links = np.asarray(path['links'], dtype='int32')

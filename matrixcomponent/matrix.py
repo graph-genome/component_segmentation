@@ -12,6 +12,7 @@ class Bin:
     coverage: float
     inversion: float
     nucleotide_ranges: List[List[int]]
+    path_id: int
     sequence: str = ''
 
 ## Path is all for input files

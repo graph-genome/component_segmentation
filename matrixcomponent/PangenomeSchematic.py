@@ -10,8 +10,10 @@ from typing import List
 
 from dataclasses import dataclass
 
-from matrixcomponent import JSON_VERSION
+from matrixcomponent import JSON_VERSION, ontology
 from matrixcomponent.matrix import Component, Bin, LinkColumn
+
+from rdflib import Graph, Namespace, URIRef
 
 from DNASkittleUtils.Contigs import Contig, write_contigs_to_file
 
@@ -50,7 +52,7 @@ class PangenomeSchematic:
         self.first_bin = 1  # these have not been properly initialized
         self.last_bin = self.components[-1].last_bin
 
-    def split_and_write(self, cells_per_file, folder, fasta : Contig):
+    def split_and_write(self, cells_per_file, folder, fasta: Contig, ontology_folder):
         """Splits one Schematic into multiple files with their own
         unique first and last_bin based on the volume of data desired per
         file specified by cells_per_file.  """
@@ -96,6 +98,87 @@ class PangenomeSchematic:
                                          "first_bin": schematic.first_bin,
                                          "last_bin": schematic.last_bin})
 
+                if ontology_folder:
+                    # going from top to bottom
+                    zoom_level = ontology.ZoomLevel()
+                    zoom_level.zoom_factor = schematic.bin_width
+                    zoom_level.ns = URIRef('pg/')
+
+                    cell_counter = 0
+                    obin_dict = {}
+                    for ic, component in enumerate(schematic.components):
+                        ocomp = ontology.Component(ic + 1)
+                        zoom_level.components.append(ocomp)
+
+                        # bins
+                        for bins in component.matrix:
+                            for bin in bins:
+                                if bin:
+                                    obin = ontology.Bin()
+                                    obin.bin_rank = bin.bin_id
+                                    obin.path_id  = bin.path_id # saved in the populate_component_matrix
+                                    obin_dict[bin.bin_id] = obin
+                                    ocomp.bins.append(obin)
+
+                                    cell_counter = cell_counter + 1
+                                    ocell = ontology.Cell()
+                                    ocell.id = cell_counter
+                                    ocell.inversion_percent = bin.inversion
+                                    ocell.position_percent = bin.coverage
+
+                                    for [begin, end] in bin.nucleotide_ranges:
+                                        oregion = ontology.Region()
+                                        oregion.begin = begin
+                                        oregion.end = end
+                                        ocell.cell_region.append(oregion)
+
+                                    obin.cells.append(ocell)
+
+                    # links between components and their bins
+                    for component, ocomp in zip(schematic.components, zoom_level.components):
+                        # links: arrivals
+                        link_counter = 0
+                        for link in component.arrivals:
+                            link_counter = link_counter + 1
+                            olink = ontology.Link()
+                            olink.id = link_counter
+
+                            if link.upstream in obin_dict:
+                                olink.departure = obin_dict[link.upstream]
+
+                            if link.downstream in obin_dict:
+                                olink.arrival   = obin_dict[link.downstream]
+
+                            olink.paths = (link.participants + 1).tolist()
+                            ocomp.links.append(olink)
+
+                        for link in component.departures:
+                            link_counter = link_counter + 1
+                            olink = ontology.Link()
+                            olink.id = link_counter
+
+                            if link.upstream in obin_dict:
+                                olink.departure = obin_dict[link.upstream]
+
+                            if link.downstream in obin_dict:
+                                olink.arrival = obin_dict[link.downstream]
+
+                            olink.paths = (link.participants + 1).tolist()
+                            ocomp.links.append(olink)
+
+
+                    g = Graph()
+                    vg = Namespace('http://biohackathon.org/resource/vg#')
+                    faldo = Namespace('http://biohackathon.org/resource/faldo#')
+                    g.bind('vg', vg)
+                    g.bind('faldo', faldo)
+
+                    zoom_level.add_to_graph(g, vg, faldo)  # here the magic happens
+
+                    p = ontology_folder.joinpath(schematic.ttl_filename(i))
+                    g.serialize(destination=str(p), format='turtle', encoding='utf-8')
+
+
         return bin2file_mapping
 
     def find_cut_points_in_file_split(self, bins_per_file, column_counts):
@@ -133,6 +216,9 @@ class PangenomeSchematic:
 
     def fasta_filename(self, nth_file):
         return f'seq_chunk{self.pad_file_nr(nth_file)}_bin{self.bin_width}.fa'
+
+    def ttl_filename(self, nth_file):
+        return f'seq_chunk{self.pad_file_nr(nth_file)}_bin{self.bin_width}.ttl'
 
     def write_index_file(self, folder, bin2file_mapping):
 
