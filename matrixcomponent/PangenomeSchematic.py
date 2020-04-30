@@ -10,10 +10,8 @@ from typing import List
 
 from dataclasses import dataclass
 
-from matrixcomponent import JSON_VERSION, ontology
+from matrixcomponent import JSON_VERSION
 from matrixcomponent.matrix import Component, Bin, LinkColumn
-
-from rdflib import Graph, Namespace, URIRef
 
 from DNASkittleUtils.Contigs import Contig, write_contigs_to_file
 
@@ -48,18 +46,24 @@ class PangenomeSchematic:
         # whitespace and [] takes up the majority of the file size
         return json.dumps(self, default=dumper, indent=None, separators=(',', ':\n'))
 
+    def n_links(self):
+        return sum([len(x.arrivals) + len(x.departures) for x in self.components])
+
+    def n_components(self):
+        return len(self.components)
+
     def update_first_last_bin(self):
         self.first_bin = 1  # these have not been properly initialized
         self.last_bin = self.components[-1].last_bin
 
-    def split_and_write(self, cells_per_file, folder, fasta: Contig, ontology_folder):
+    def split_and_write(self, cells_per_file, folder, fasta : Contig):
         """Splits one Schematic into multiple files with their own
         unique first and last_bin based on the volume of data desired per
         file specified by cells_per_file.  """
         avg_paths = self.lazy_average_occupants()
-        bins_per_file = ceil(cells_per_file / avg_paths)
-        column_counts = self.rolling_sum_column_count()
-        cut_points = self.find_cut_points_in_file_split(bins_per_file, column_counts)
+        columns_per_file = ceil(cells_per_file / avg_paths)
+        column_counts = [c.x for c in self.components]
+        cut_points = self.find_cut_points_in_file_split(columns_per_file, column_counts)
 
         # variables cut and end_cut are componentIDs
         # binIDs are in components.{first,last}_bin
@@ -73,8 +77,16 @@ class PangenomeSchematic:
                                                self.total_nr_files, self.pangenome_length)
                 schematic.filename = self.filename(i)  # save for consistency IMPORTANT
 
-                if fasta is not None:
-                    schematic.fasta_filename = self.fasta_filename(i)
+                chunk_summary = {"file": schematic.filename,
+                                 "first_bin": schematic.first_bin,
+                                 "last_bin": schematic.last_bin,
+                                 # used to calculate amount of padding for x values
+                                 "component_count": schematic.n_components(),
+                                 # extra columns beyond last_bin - first_bin
+                                 "link_count": schematic.n_links()}
+                if schematic.bin_width == 1:
+                    chunk_summary["fasta"] = self.fasta_filename(i)
+                bin2file_mapping.append(chunk_summary)
 
                 p = folder.joinpath(schematic.filename)
                 with p.open('w') as fpgh9:
@@ -85,122 +97,22 @@ class PangenomeSchematic:
                     fa_first, fa_last = (schematic.first_bin * x), ((schematic.last_bin + 1) * x)
                     header = f"first_bin: {schematic.first_bin} " + f"last_bin: {schematic.last_bin}"
                     chunk = [Contig(header, fasta.seq[fa_first:fa_last])]
-                    c = folder.joinpath(schematic.fasta_filename)
+                    c = folder.joinpath(schematic.fasta_filename(i))
                     write_contigs_to_file(c, chunk)
-
-                if schematic.bin_width == 1:
-                    bin2file_mapping.append({"file": schematic.filename,
-                                             "fasta": schematic.fasta_filename,
-                                             "first_bin": schematic.first_bin,
-                                             "last_bin": schematic.last_bin})
-                else:
-                    bin2file_mapping.append({"file": schematic.filename,
-                                         "first_bin": schematic.first_bin,
-                                         "last_bin": schematic.last_bin})
-
-                if ontology_folder:
-                    # going from top to bottom
-                    zoom_level = ontology.ZoomLevel()
-                    zoom_level.zoom_factor = schematic.bin_width
-                    zoom_level.ns = URIRef('pg/')
-
-                    cell_counter = 0
-                    obin_dict = {}
-                    for ic, component in enumerate(schematic.components):
-                        ocomp = ontology.Component(ic + 1)
-                        zoom_level.components.append(ocomp)
-
-                        # bins
-                        for bins in component.matrix:
-                            for bin in bins:
-                                if bin:
-                                    obin = ontology.Bin()
-                                    obin.bin_rank = bin.bin_id
-                                    obin.path_id  = bin.path_id # saved in the populate_component_matrix
-                                    obin_dict[bin.bin_id] = obin
-                                    ocomp.bins.append(obin)
-
-                                    cell_counter = cell_counter + 1
-                                    ocell = ontology.Cell()
-                                    ocell.id = cell_counter
-                                    ocell.inversion_percent = bin.inversion
-                                    ocell.position_percent = bin.coverage
-
-                                    for [begin, end] in bin.nucleotide_ranges:
-                                        oregion = ontology.Region()
-                                        oregion.begin = begin
-                                        oregion.end = end
-                                        ocell.cell_region.append(oregion)
-
-                                    obin.cells.append(ocell)
-
-                    # links between components and their bins
-                    for component, ocomp in zip(schematic.components, zoom_level.components):
-                        # links: arrivals
-                        link_counter = 0
-                        for link in component.arrivals:
-                            link_counter = link_counter + 1
-                            olink = ontology.Link()
-                            olink.id = link_counter
-
-                            if link.upstream in obin_dict:
-                                olink.departure = obin_dict[link.upstream]
-
-                            if link.downstream in obin_dict:
-                                olink.arrival   = obin_dict[link.downstream]
-
-                            olink.paths = (link.participants + 1).tolist()
-                            ocomp.links.append(olink)
-
-                        for link in component.departures:
-                            link_counter = link_counter + 1
-                            olink = ontology.Link()
-                            olink.id = link_counter
-
-                            if link.upstream in obin_dict:
-                                olink.departure = obin_dict[link.upstream]
-
-                            if link.downstream in obin_dict:
-                                olink.arrival = obin_dict[link.downstream]
-
-                            olink.paths = (link.participants + 1).tolist()
-                            ocomp.links.append(olink)
-
-
-                    g = Graph()
-                    vg = Namespace('http://biohackathon.org/resource/vg#')
-                    faldo = Namespace('http://biohackathon.org/resource/faldo#')
-                    g.bind('vg', vg)
-                    g.bind('faldo', faldo)
-
-                    zoom_level.add_to_graph(g, vg, faldo)  # here the magic happens
-
-                    p = ontology_folder.joinpath(schematic.ttl_filename(i))
-                    g.serialize(destination=str(p), format='turtle', encoding='utf-8')
-
 
         return bin2file_mapping
 
-    def find_cut_points_in_file_split(self, bins_per_file, column_counts):
+    def find_cut_points_in_file_split(self, columns_per_file, column_counts):
         """Use binary search bisect to find the component boundaries closest to
         target breakpoints for splitting files."""
         cut_points, prev_point = [0], 0
-        for start_bin in range(0, column_counts[-1], bins_per_file):
-            cut = bisect(column_counts, start_bin + bins_per_file)
+        for start_bin in range(0, column_counts[-1], columns_per_file):
+            cut = bisect(column_counts, start_bin + columns_per_file)
             cut_points.append(max(prev_point + 1, cut))
             prev_point = cut
         cut_points.append(len(self.components))  # don't chop of dangling end
         self.total_nr_files = len(cut_points) - 1
         return cut_points
-
-    def rolling_sum_column_count(self):
-        """accounting for SVs in column count (cells per file) makes file size much more stable"""
-        self.update_first_last_bin()
-        column_counts, rolling_sum = [], 0
-        for c in self.components:
-            rolling_sum += c.column_count()
-            column_counts.append(rolling_sum)
-        return column_counts
 
     def lazy_average_occupants(self):
         """grab four random components and check how many occupants they have"""
@@ -217,9 +129,6 @@ class PangenomeSchematic:
     def fasta_filename(self, nth_file):
         return f'seq_chunk{self.pad_file_nr(nth_file)}_bin{self.bin_width}.fa'
 
-    def ttl_filename(self, nth_file):
-        return f'seq_chunk{self.pad_file_nr(nth_file)}_bin{self.bin_width}.ttl'
-
     def write_index_file(self, folder, bin2file_mapping):
 
         file_contents = {'bin_width': self.bin_width,
@@ -234,3 +143,13 @@ class PangenomeSchematic:
         with master_index_file.open('w') as f:
             f.write(json.dumps(master_contents, indent=4))
             print("Saved file2bin mapping to", master_index_file)
+
+    def prerender(self):
+        """Calculates X coordinates and summary statistics for all Components"""
+        x = 0
+        for component in self.components:
+            component.x = x
+            # component.first_bin=0 does not take up rendering space, the next component is 0
+            x = component.next_x_coord() if component.first_bin else 0
+        self.update_first_last_bin()
+

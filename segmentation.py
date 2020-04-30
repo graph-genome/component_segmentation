@@ -149,6 +149,7 @@ def segment_matrix(matrix: List[Path], bin_width, cells_per_file, pangenome_leng
         add_adjacent_connector_column(component, next_component, schematic)
 
     LOGGER.info(f"Created {nLinkColumns} LinkColumns")
+    schematic.prerender()
 
     return schematic
 

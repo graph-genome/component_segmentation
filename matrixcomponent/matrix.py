@@ -47,6 +47,7 @@ class Component:
     matrix: List[List[Bin]]
     arrivals: List[LinkColumn]
     departures: List[LinkColumn]
+    x = 0
 
     def __init__(self, first_bin: int, last_bin: int):
         self.first_bin = first_bin
@@ -56,7 +57,8 @@ class Component:
         self.arrivals = []  # reverse ordered Links
         self.departures = []  # ordered Links
 
-    def column_count(self):
-        """Used to estimate JSON size.  LinkColumns are counted twice because they have a
-        participants boolean list."""
-        return 2*(len(self.arrivals) + len(self.departures)) + self.last_bin - self.first_bin
+    def width(self):
+        return len(self.arrivals) + len(self.departures) + self.last_bin - self.first_bin
+
+    def next_x_coord(self):
+        return self.x + self.width() + 1 # 1 column of padding
