@@ -46,6 +46,12 @@ class PangenomeSchematic:
         # whitespace and [] takes up the majority of the file size
         return json.dumps(self, default=dumper, indent=None, separators=(',', ':\n'))
 
+    def n_links(self):
+        return sum([len(x.arrivals) + len(x.departures) for x in self.components])
+
+    def n_components(self):
+        return len(self.components)
+
     def update_first_last_bin(self):
         self.first_bin = 1  # these have not been properly initialized
         self.last_bin = self.components[-1].last_bin
@@ -55,9 +61,9 @@ class PangenomeSchematic:
         unique first and last_bin based on the volume of data desired per
         file specified by cells_per_file.  """
         avg_paths = self.lazy_average_occupants()
-        bins_per_file = ceil(cells_per_file / avg_paths)
-        column_counts = self.rolling_sum_column_count()
-        cut_points = self.find_cut_points_in_file_split(bins_per_file, column_counts)
+        columns_per_file = ceil(cells_per_file / avg_paths)
+        column_counts = [c.x for c in self.components]
+        cut_points = self.find_cut_points_in_file_split(columns_per_file, column_counts)
 
         # variables cut and end_cut are componentIDs
         # binIDs are in components.{first,last}_bin
@@ -71,8 +77,16 @@ class PangenomeSchematic:
                                                self.total_nr_files, self.pangenome_length)
                 schematic.filename = self.filename(i)  # save for consistency IMPORTANT
 
-                if fasta is not None:
-                    schematic.fasta_filename = self.fasta_filename(i)
+                chunk_summary = {"file": schematic.filename,
+                                 "first_bin": schematic.first_bin,
+                                 "last_bin": schematic.last_bin,
+                                 # used to calculate amount of padding for x values
+                                 "component_count": schematic.n_components(),
+                                 # extra columns beyond last_bin - first_bin
+                                 "link_count": schematic.n_links()}
+                if schematic.bin_width == 1:
+                    chunk_summary["fasta"] = self.fasta_filename(i)
+                bin2file_mapping.append(chunk_summary)
 
                 p = folder.joinpath(schematic.filename)
                 with p.open('w') as fpgh9:
@@ -83,41 +97,22 @@ class PangenomeSchematic:
                     fa_first, fa_last = (schematic.first_bin * x), ((schematic.last_bin + 1) * x)
                     header = f"first_bin: {schematic.first_bin} " + f"last_bin: {schematic.last_bin}"
                     chunk = [Contig(header, fasta.seq[fa_first:fa_last])]
-                    c = folder.joinpath(schematic.fasta_filename)
+                    c = folder.joinpath(schematic.fasta_filename(i))
                     write_contigs_to_file(c, chunk)
-
-                if schematic.bin_width == 1:
-                    bin2file_mapping.append({"file": schematic.filename,
-                                             "fasta": schematic.fasta_filename,
-                                             "first_bin": schematic.first_bin,
-                                             "last_bin": schematic.last_bin})
-                else:
-                    bin2file_mapping.append({"file": schematic.filename,
-                                         "first_bin": schematic.first_bin,
-                                         "last_bin": schematic.last_bin})
 
         return bin2file_mapping
 
-    def find_cut_points_in_file_split(self, bins_per_file, column_counts):
+    def find_cut_points_in_file_split(self, columns_per_file, column_counts):
         """Use binary search bisect to find the component boundaries closest to
         target breakpoints for splitting files."""
         cut_points, prev_point = [0], 0
-        for start_bin in range(0, column_counts[-1], bins_per_file):
-            cut = bisect(column_counts, start_bin + bins_per_file)
+        for start_bin in range(0, column_counts[-1], columns_per_file):
+            cut = bisect(column_counts, start_bin + columns_per_file)
             cut_points.append(max(prev_point + 1, cut))
             prev_point = cut
         cut_points.append(len(self.components))  # don't chop of dangling end
         self.total_nr_files = len(cut_points) - 1
         return cut_points
-
-    def rolling_sum_column_count(self):
-        """accounting for SVs in column count (cells per file) makes file size much more stable"""
-        self.update_first_last_bin()
-        column_counts, rolling_sum = [], 0
-        for c in self.components:
-            rolling_sum += c.column_count()
-            column_counts.append(rolling_sum)
-        return column_counts
 
     def lazy_average_occupants(self):
         """grab four random components and check how many occupants they have"""
@@ -148,3 +143,13 @@ class PangenomeSchematic:
         with master_index_file.open('w') as f:
             f.write(json.dumps(master_contents, indent=4))
             print("Saved file2bin mapping to", master_index_file)
+
+    def prerender(self):
+        """Calculates X coordinates and summary statistics for all Components"""
+        x = 0
+        for component in self.components:
+            component.x = x
+            # component.first_bin=0 does not take up rendering space, the next component is 0
+            x = component.next_x_coord() if component.first_bin else 0
+        self.update_first_last_bin()
+
