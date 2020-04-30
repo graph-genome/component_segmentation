@@ -36,6 +36,10 @@ class LinkColumn:
     num_paths: int
     participants: 'numpy.array' # ids of participated path_names
 
+    # todo: not more than 2^32 bins are supported - refactor the ontology code processing the Link items
+    def __hash__(self):
+        return (self.upstream << 32) + self.downstream
+
 
 class Component:
     """Block of co-linear variation within a Graph Matrix
