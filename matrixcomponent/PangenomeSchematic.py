@@ -92,7 +92,7 @@ class PangenomeSchematic:
                 with p.open('w') as fpgh9:
                     fpgh9.write(schematic.json_dump())
 
-                if fasta is not None:
+                if fasta is not None and schematic.bin_width == 1:
                     x = schematic.bin_width
                     fa_first, fa_last = (schematic.first_bin * x), ((schematic.last_bin + 1) * x)
                     header = f"first_bin: {schematic.first_bin} " + f"last_bin: {schematic.last_bin}"
