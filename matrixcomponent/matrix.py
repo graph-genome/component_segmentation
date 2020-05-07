@@ -3,16 +3,15 @@
 from dataclasses import dataclass
 from typing import List
 import numpy
+import recordclass
 from sortedcontainers import SortedDict
 
 
-@dataclass
-class Bin:
+class Bin(recordclass.dataobject):
     bin_id: int
     coverage: float
     inversion: float
-    nucleotide_ranges: List[List[int]]
-    sequence: str = ''
+    nucleotide_ranges: 'numpy.array' # List[List[int]] is encoded as a Numpy flat array - this saves memory
 
 ## Path is all for input files
 
@@ -20,7 +19,10 @@ class Bin:
 class Path:
     name: str
     bins: 'SortedDict[int,Bin]'
-    links: 'numpy.array'
+    path_dividers: 'numpy.array'
+    self_loops: 'numpy.array'
+    num_links: int
+    max_bin_id: int
 
     def __init__(self, name=''):
         self.name = name
@@ -29,10 +31,9 @@ class Path:
 
 ## For Output to RDF  ###########
 @dataclass
-class LinkColumn:
+class LinkColumn(recordclass.dataobject):
     upstream: int
     downstream: int
-    num_paths: int
     participants: 'numpy.array' # ids of participated path_names
 
 
@@ -42,8 +43,8 @@ class Component:
         # careful construction can reuse Bin.sequence memory pointer"""
     first_bin: int
     last_bin: int
-    occupants: List[bool]
-    matrix: List[List[Bin]]
+    occupants: set  # pure ids
+    matrix: List
     arrivals: List[LinkColumn]
     departures: List[LinkColumn]
     x = 0
@@ -51,7 +52,7 @@ class Component:
     def __init__(self, first_bin: int, last_bin: int):
         self.first_bin = first_bin
         self.last_bin = last_bin
-        self.occupants = []
+        self.occupants = set()
         self.matrix = []
         self.arrivals = []  # reverse ordered Links
         self.departures = []  # ordered Links

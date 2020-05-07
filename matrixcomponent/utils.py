@@ -24,6 +24,8 @@ def path_dividers(links: np.array, bin_ids: np.array) -> np.array:
       bin_ids(np.array) - sorted array of path bin ids
     '''
     mask = links[:, 0] > links[:, 1]  # simple case: upstream > downstream
+    if np.all(mask):
+        return mask
 
     # if downstream >= upstream, we consider a link to be a divider
     # iff there exists a bin id within [upstream + 1, downstream) range
@@ -39,26 +41,19 @@ def path_dividers(links: np.array, bin_ids: np.array) -> np.array:
 
 # warning: this function is intended to be numba-compatible
 def _split_numpy_arr(connections_from, connections_to):
-    groups = []
-    src, dst = connections_from[0], connections_to[0]
-    group_start = 0
 
-    for i in range(len(connections_from)):
-        isrc, idst = connections_from[i], connections_to[i]
-        if isrc != src or idst != dst:
-            groups.append((group_start, i))
-            group_start = i
-            src, dst = isrc, idst
+    # arrays are already pre-sorted - use this info to find the indices of the unique items
+    mask_from = connections_from[:-1] != connections_from[1:]
+    mask_to = connections_to[:-1] != connections_to[1:]
+    ids = np.arange(1, len(connections_from))[mask_from | mask_to]
 
-    # add last group
-    groups.append((group_start, len(connections_from)))
-    return groups
+    return ids
 
 try:
     # provides ~7x speedup on large tables
     from numba import jit, njit
 
-    _split_numpy_arr = jit(_split_numpy_arr)
+    #_split_numpy_arr = jit(_split_numpy_arr)
 except ImportError:
     pass
 
@@ -74,7 +69,13 @@ def find_groups(connections_from, connections_to: np.array) -> 'List[(int, int)]
     if connections_from.size == 0:
         return []
 
-    return _split_numpy_arr(connections_from, connections_to)
+    groups = _split_numpy_arr(connections_from, connections_to)
+    return [0] + groups.tolist() + [len(connections_from)]
+
+
+def compress_array(array: 'np.array', shift=21, path_shift=10) -> 'np.array':
+    return (np.array(array[0, :], dtype=np.int64, copy=False) << (shift + path_shift)) + \
+            (np.array(array[1, :], dtype=np.int64, copy=False) << path_shift) + array[2, :]
 
 
 def sort_and_drop_duplicates(connections: 'List[np.array]', shift=21, path_shift=10) -> dict:
@@ -86,13 +87,7 @@ def sort_and_drop_duplicates(connections: 'List[np.array]', shift=21, path_shift
     lower_mask = (1 << path_shift) - 1
 
     # the columns are assumed to be (from, to, path_index)
-    array = np.concatenate(connections, axis=-1)
-
-    # compress all columns into a single 64-bit integer
-    compressed = (np.array(array[0, :], dtype='int64', copy=False) << (shift + path_shift)) + \
-                 (np.array(array[1, :], dtype='int64', copy=False) << path_shift) + \
-                 array[2, :]
-
+    compressed = np.concatenate(connections)
     compressed_no_dups = np.unique(compressed)
 
     return dict({
