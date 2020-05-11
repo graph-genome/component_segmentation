@@ -86,6 +86,7 @@ def populate_component_matrix(paths: List[Path], schematic: PangenomeSchematic):
                 sliced = values[fr:to]
                 for bin in sliced:
                     padded[bin.bin_id - fb] = bin # do not create objects, simply link them
+                    bin.path_id = p  # save for later
                 comp.matrix[p] = padded
                 comp.occupants[p] = any([bin.coverage > 0.1 for bin in sliced])
 

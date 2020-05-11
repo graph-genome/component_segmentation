@@ -8,7 +8,10 @@ class Region:
     end: int
 
     def __str__(self):
-        return "region/" + str(self.begin) + "-" + str(self.end)  # region/2-10
+        suffix = str(self.begin)  # region/2
+        if self.begin != self.end:
+            suffix = suffix + "-" + str(self.end)  # region/2-10
+        return "region/" + suffix
 
     def ns_term(self):
         return self.ns + str(self) # path1/...
@@ -16,12 +19,17 @@ class Region:
     def add_to_graph(self, graph: Graph, vg, faldo: Namespace) -> None:
         region = self.ns_term()  # str representation
 
-        # add the object itself
-        graph.add( (region, RDF.type, faldo.Region) )
+        if self.begin == self.end:
+            # add the object itself
+            graph.add((region, RDF.type, faldo.ExactPosition))
+            graph.add((region, faldo.position, Literal(self.begin)))
+        else:
+            # add the object itself
+            graph.add( (region, RDF.type, faldo.Region) )
 
-        # add its properties, recursively if needed
-        graph.add( (region, faldo.begin, self.ns + "position/" + str(self.begin)) )
-        graph.add( (region, faldo.end, self.ns + "position/" + str(self.end)) )
+            # add its properties, recursively if needed
+            graph.add( (region, faldo.begin, self.ns + "position/" + str(self.begin)) )
+            graph.add( (region, faldo.end, self.ns + "position/" + str(self.end)) )
 
 
 class Cell:
@@ -36,7 +44,7 @@ class Cell:
         self.cell_region = []
 
     def __str__(self):
-        return "cell" + str(self.id)  # cell1
+        return "cell" + self.path_id # cell1
 
     def ns_term(self):
         return self.ns + str(self)
