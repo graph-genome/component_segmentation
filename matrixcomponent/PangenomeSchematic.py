@@ -111,6 +111,7 @@ class PangenomeSchematic:
                     cell_counter = 0
                     ocomp_dict = {}
                     obin_dict = {}
+                    oposition_dict = {}
                     for ic, component in enumerate(schematic.components):
                         ocomp = ontology.Component(ic+1)
                         ocomp.ns = zoom_level.ns_term() + '/'
@@ -153,44 +154,54 @@ class PangenomeSchematic:
                                     ocell.position_percent = bin.coverage
 
                                     # todo: are begin,end the real bin_ids or the compressed ones? a sparse list sense
+                                    cell_ns = URIRef(ocell.path_id + "/")
                                     for [begin, end] in bin.nucleotide_ranges:
                                         oregion = ontology.Region()
                                         oregion.begin = begin
                                         oregion.end = end
                                         ocell.cell_region.append(oregion)
 
+                                        oposition_begin = ontology.Position(begin, cell_ns)
+                                        oposition_end = ontology.Position(end, cell_ns)
+                                        oposition_dict[oposition_begin.ns_term()] = oposition_begin
+                                        oposition_dict[oposition_end.ns_term()] = oposition_end
+
                                     obin.cells.append(ocell)
 
                     # links between components and their bins
 
-                    all_links = []
+                    olink_dict = {}
+                    link_counter = 0
                     for component in schematic.components:
-                        # search in both arrivals and departures of the component <-> component links
-                        all_links.extend(component.arrivals + component.departures)
+                        # search in all arrivals component <-> component links; departures are iterated automatically
+                        # every link from departures will be in some other arrival
+                        for link in component.departures:
+                            if len(link.participants):
+                                link_counter = link_counter + 1
+                                olink = ontology.Link()
+                                olink.id = link_counter
+                                olink_dict[link_counter] = olink
+
 
                     link_counter = 0
-                    for link in set(all_links):  # no duplications; we use Link.__hash__() here - not nice ..
-                        if len(link.participants):
-                            link_counter = link_counter + 1
-                            olink = ontology.Link()
-                            olink.id = link_counter
+                    for component in schematic.components:
+                        # search in all arrivals component <-> component links; departures are iterated automatically
+                        # every link from departures will be in some other arrival
+                        for link in component.departures:
+                            if len(link.participants):
+                                link_counter = link_counter + 1
+                                olink = olink_dict[link_counter]
 
-                            from_bin = None
-                            to_bin = None
-                            if link.upstream in obin_dict:
-                                from_bin = obin_dict[link.upstream]
-                                from_bin.forward_bin_edge = link.downstream
+                                if link.upstream in obin_dict:
+                                    from_bin = obin_dict[link.upstream]
+                                    olink.departure = from_bin.ns_term()
 
-                            if link.downstream in obin_dict:
-                                to_bin = obin_dict[link.downstream]
-                                olink.arrival = to_bin.ns_term()
+                                if link.downstream in obin_dict:
+                                    to_bin = obin_dict[link.downstream]
+                                    olink.arrival = to_bin.ns_term()
 
-                            if from_bin and to_bin:
-                                from_bin.forward_bin_edge = to_bin.ns_term()
-                                to_bin.reverse_bin_edge = from_bin.ns_term()
-
-                            olink.paths = [self.path_names[k] for k in link.participants]
-                            zoom_level.links.append(olink)
+                                olink.paths = [self.path_names[k] for k in link.participants]
+                                zoom_level.links.append(olink)
 
                     g = Graph()
                     vg = Namespace('http://biohackathon.org/resource/vg#')
@@ -199,6 +210,8 @@ class PangenomeSchematic:
                     g.bind('faldo', faldo)
 
                     zoom_level.add_to_graph(g, vg, faldo)  # here the magic happens
+                    for oposition in oposition_dict.values():
+                        oposition.add_to_graph(g, vg, faldo)
 
                     p = ontology_folder.joinpath(schematic.ttl_filename(i))
                     g.serialize(destination=str(p), format='turtle', encoding='utf-8')

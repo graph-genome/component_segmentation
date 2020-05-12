@@ -2,16 +2,37 @@ from typing import List
 from rdflib import Namespace, Graph, Literal, URIRef, RDF
 
 
+class Position:
+    id: int
+    ns: URIRef
+
+    def __init__(self, id, ns):
+        self.id = id
+        self.ns = ns
+
+    def __str__(self):
+        return str(self.id)
+
+    def ns_term(self):
+        return self.ns + str(self) # path1/2
+
+    def add_to_graph(self, graph: Graph, vg, faldo: Namespace) -> None:
+        position = self.ns_term()  # str representation
+
+        # add the object itself
+        graph.add((position, RDF.type, faldo.ExactPosition))
+
+        # add its properties, recursively if needed
+        graph.add((position, faldo.position, Literal(self.id)))
+
+
 class Region:
     ns: URIRef
     begin: int
     end: int
 
     def __str__(self):
-        suffix = str(self.begin)  # region/2
-        if self.begin != self.end:
-            suffix = suffix + "-" + str(self.end)  # region/2-10
-        return "region/" + suffix
+        return str(self.begin) + "-" + str(self.end)  # 2-10
 
     def ns_term(self):
         return self.ns + str(self) # path1/...
@@ -19,17 +40,12 @@ class Region:
     def add_to_graph(self, graph: Graph, vg, faldo: Namespace) -> None:
         region = self.ns_term()  # str representation
 
-        if self.begin == self.end:
-            # add the object itself
-            graph.add((region, RDF.type, faldo.ExactPosition))
-            graph.add((region, faldo.position, Literal(self.begin)))
-        else:
-            # add the object itself
-            graph.add( (region, RDF.type, faldo.Region) )
+        # add the object itself
+        graph.add((region, RDF.type, faldo.Region))
 
-            # add its properties, recursively if needed
-            graph.add( (region, faldo.begin, self.ns + "position/" + str(self.begin)) )
-            graph.add( (region, faldo.end, self.ns + "position/" + str(self.end)) )
+        # add its properties, recursively if needed
+        graph.add((region, faldo.begin, self.ns + str(self.begin)))
+        graph.add((region, faldo.end, self.ns + str(self.end)))
 
 
 class Cell:
@@ -61,7 +77,7 @@ class Cell:
         graph.add((cell, vg.inversionPercent, Literal(self.inversion_percent)))
         for region in self.cell_region:
             region.ns = inner_ns
-            graph.add((cell, vg.cellRegion, region.ns_term()))  # can have multiple bins
+            graph.add((cell, vg.cellRegions, region.ns_term()))  # can have multiple regions
             region.add_to_graph(graph, vg, faldo)
 
 
@@ -137,6 +153,8 @@ class Link:
         graph.add((link, RDF.type, vg.Link))
 
         # add its properties, recursively if needed
+        graph.add((link, vg.linkRank, Literal(self.id)))
+
         if self.arrival:
             graph.add((link, vg.arrival, URIRef(self.arrival)))
 
