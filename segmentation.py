@@ -33,6 +33,9 @@ MAX_COMPONENT_SIZE = 100  # automatic calculation from cells_per_file did not go
 LOGGER = logging.getLogger(__name__)
 """logging.Logger: The logger for this module"""
 
+# is set to 0 in the very end
+# if exited prematurely will indicate an unsuccessful execution
+exitcode = 1
 
 def populate_component_matrix(paths: List[Path], schematic: PangenomeSchematic):
     # the loops are 1) paths, and then 2) schematic.components
@@ -406,7 +409,7 @@ def graceful_exit():
     for child in parent.children(recursive=True):
         child.kill()
 
-    os._exit(0)
+    os._exit(exitcode)
 
 
 if __name__ == '__main__':
@@ -423,6 +426,8 @@ if __name__ == '__main__':
     atexit.register(graceful_exit)
 
     main()
+
+    exitcode = 0
 
 """
 --json-file=data/run1.B1phi1.i1.seqwish.w100.json --cells-per-file=5000
