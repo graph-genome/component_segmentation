@@ -149,6 +149,8 @@ def segment_matrix(matrix: List[Path], bin_width, cells_per_file, pangenome_leng
     for i in range(len(schematic.components)-1):
         component, next_component = schematic.components[i],schematic.components[i+1]
         add_adjacent_connector_column(component, next_component, schematic)
+    # add special case connectors for the last component in the file
+    add_adjacent_connector_column(schematic.components[-1], None, schematic)
 
     LOGGER.info(f"Created {nLinkColumns} LinkColumns")
     schematic.prerender()
@@ -182,7 +184,9 @@ def add_adjacent_connector_column(component, next_component, schematic):
 
     ids = np.arange(len(schematic.path_names))
     mask_component = np.asarray(component.occupants, dtype=bool)
-    mask_next_component = np.asarray(next_component.occupants, dtype=bool)
+    # next_component is None: special case connectors for the last component in the file
+    mask_next_component = np.asarray(next_component.occupants, dtype=bool) if next_component \
+        else np.full(len(component.occupants), False, dtype=bool)
 
     filtered_rows = ids[mask_component & mask_next_component]
     adjacents = filtered_rows # we take all the filtered IDs if there are no departures
