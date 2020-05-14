@@ -79,6 +79,9 @@ def compress_array(array: 'np.array', shift=21, path_shift=10) -> 'np.array':
 
 
 def sort_and_drop_duplicates(connections: 'List[np.array]', shift=21, path_shift=10) -> dict:
+    if len(connections) == 0:
+        return dict({'from': np.array([]), 'to': np.array([]), 'path_index': np.array([])})
+
     '''
     returns connections sorted by ["from", "to", "path_index"] without duplicate entries;
     see find_dividers in segmentation.py

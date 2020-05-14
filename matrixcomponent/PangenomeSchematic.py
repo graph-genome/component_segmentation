@@ -54,7 +54,8 @@ class PangenomeSchematic:
         return json.dumps(self, default=dumper, indent=None, separators=(',', ':\n'))
 
     def n_links(self):
-        return sum([len(x.arrivals) + len(x.departures) for x in self.components])
+        return sum([len(x.arrivals) + (len(x.departures) - 1) for x in self.components])
+    # (len(self.departures)-1) because last departure is adjacent connectors
 
     def n_components(self):
         return len(self.components)

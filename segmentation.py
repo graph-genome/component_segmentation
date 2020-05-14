@@ -33,6 +33,9 @@ MAX_COMPONENT_SIZE = 100  # automatic calculation from cells_per_file did not go
 LOGGER = logging.getLogger(__name__)
 """logging.Logger: The logger for this module"""
 
+# is set to 0 in the very end
+# if exited prematurely will indicate an unsuccessful execution
+exitcode = 1
 
 def populate_component_matrix(paths: List[Path], schematic: PangenomeSchematic):
     # the loops are 1) paths, and then 2) schematic.components
@@ -137,6 +140,8 @@ def segment_matrix(matrix: List[Path], bin_width, cells_per_file, pangenome_leng
     for i in range(len(schematic.components)-1):
         component, next_component = schematic.components[i],schematic.components[i+1]
         add_adjacent_connector_column(component, next_component, schematic)
+    # add special case connectors for the last component in the file
+    add_adjacent_connector_column(schematic.components[-1], None, schematic)
 
     num_link_columns = sum([(len(comp.departures) + len(comp.arrivals)) for comp in schematic.components])
     LOGGER.info(f"Created {num_link_columns} LinkColumns")
@@ -171,7 +176,7 @@ def add_adjacent_connector_column(component, next_component, schematic):
     multiple copy cases."""
 
     ids = np.arange(len(schematic.path_names))
-    common = component.occupants & next_component.occupants
+    common = component.occupants & next_component.occupants if (component and next_component) else []
     filtered_rows = np.asarray([ids[j] for j in common])
     adjacents = filtered_rows # we take all the filtered IDs if there are no departures
 
@@ -227,8 +232,11 @@ def find_dividers(matrix: List[Path]) -> Tuple[dict, List[int]]:
 
     # all start positions of components
     # (max_bin + 1) is end of pangenome
-    dividers = np.concatenate([np.asarray([1, max_bin + 1], dtype='int32'), df["from"] + 1, df["to"]])
-    dividers = np.unique(dividers).tolist()
+    if n_uniq_links:
+        dividers = np.concatenate([np.asarray([1, max_bin + 1], dtype='int32'), df["from"] + 1, df["to"]])
+        dividers = np.unique(dividers).tolist()
+    else:
+        dividers = [1, max_bin + 1]
 
     LOGGER.info(f"Largest bin_id was {max_bin}; Found {len(dividers)} dividers.")
 
@@ -386,7 +394,7 @@ def graceful_exit():
     for child in parent.children(recursive=True):
         child.kill()
 
-    os._exit(0)
+    os._exit(exitcode)
 
 
 if __name__ == '__main__':
@@ -403,6 +411,8 @@ if __name__ == '__main__':
     atexit.register(graceful_exit)
 
     main()
+
+    exitcode = 0
 
 """
 --json-file=data/run1.B1phi1.i1.seqwish.w100.json --cells-per-file=5000

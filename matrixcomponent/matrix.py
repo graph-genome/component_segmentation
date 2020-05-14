@@ -58,7 +58,8 @@ class Component:
         self.departures = []  # ordered Links
 
     def width(self):
-        return len(self.arrivals) + len(self.departures) + self.last_bin - self.first_bin
+        return len(self.arrivals) + (len(self.departures) - 1) + self.last_bin - self.first_bin
+    # (len(self.departures)-1) because last departure is adjacent connectors
 
     def next_x_coord(self):
         return self.x + self.width() + 1 # 1 column of padding
