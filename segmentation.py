@@ -89,7 +89,7 @@ def populate_component_matrix(paths: List[Path], schematic: PangenomeSchematic):
     LOGGER.info("Populated Matrix and Occupancy per component per path.")
 
 
-def segment_matrix(matrix: List[Path], bin_width, cells_per_file, pangenome_length, parallel) -> PangenomeSchematic:
+def segment_matrix(matrix: List[Path], bin_width, cells_per_file, pangenome_length, no_adjacent_links, parallel) -> PangenomeSchematic:
     from matrixcomponent import JSON_VERSION
     LOGGER.info(f"Starting Segmentation process on {len(matrix)} Paths.")
     schematic = PangenomeSchematic(JSON_VERSION,
@@ -137,11 +137,12 @@ def segment_matrix(matrix: List[Path], bin_width, cells_per_file, pangenome_leng
         if dst_component:
             dst_component.arrivals.append(link_column)
 
-    for i in range(len(schematic.components)-1):
-        component, next_component = schematic.components[i],schematic.components[i+1]
-        add_adjacent_connector_column(component, next_component, schematic)
-    # add special case connectors for the last component in the file
-    add_adjacent_connector_column(schematic.components[-1], None, schematic)
+    if not no_adjacent_links:
+        for i in range(len(schematic.components)-1):
+            component, next_component = schematic.components[i],schematic.components[i+1]
+            add_adjacent_connector_column(component, next_component, schematic)
+        # add special case connectors for the last component in the file
+        add_adjacent_connector_column(schematic.components[-1], None, schematic)
 
     num_link_columns = sum([(len(comp.departures) + len(comp.arrivals)) for comp in schematic.components])
     LOGGER.info(f"Created {num_link_columns} LinkColumns")
@@ -185,10 +186,11 @@ def add_adjacent_connector_column(component, next_component, schematic):
         isin = np.isin(filtered_rows, ids, invert=True)
         adjacents = filtered_rows[isin]
 
-    component.departures.append(LinkColumn(  # LinkColumn for adjacents
-        component.last_bin,
-        component.last_bin + 1,
-        participants=np.asarray(adjacents).astype(dtype='int32')))
+    if adjacents.size > 0:  # no need to add a link with an empty list of participants
+        component.departures.append(LinkColumn(  # LinkColumn for adjacents
+            component.last_bin,
+            component.last_bin + 1,
+            participants=np.asarray(adjacents).astype(dtype='int32')))
 
 
 def find_dividers(matrix: List[Path]) -> Tuple[dict, List[int]]:
@@ -334,6 +336,12 @@ def get_arguments():
                         type=int,
                         help='Tip: do not set this one to more than available CPU cores)')
 
+    parser.add_argument('-nal', '--no-adjacent-links',
+                        dest='no_adjacent_links',
+                        default=False,
+                        action='store_true',
+                        help='Switches off the add_adjacent_connector_column() routine)')
+
     args = parser.parse_args()
 
     # file path logic for single or list of files with wildcard *
@@ -376,7 +384,7 @@ def main():
     for json_file in files:
         LOGGER.info(f'reading {osPath(json_file)}...\n')
         paths, pangenome_length, bin_width = JSONparser.parse(json_file, chunk_size*2, parallel)  # give 2x jobs to do
-        schematic = segment_matrix(paths, bin_width, args.cells_per_file, pangenome_length, parallel)
+        schematic = segment_matrix(paths, bin_width, args.cells_per_file, pangenome_length, args.no_adjacent_links, parallel)
 
         # this one spits out json and optionally other output files (fasta, ttl)
         path_name = str(bin_width)
