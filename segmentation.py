@@ -96,6 +96,7 @@ def segment_matrix(matrix: List[Path], bin_width, cells_per_file, pangenome_leng
                                    bin_width,
                                    1,
                                    1,
+                                   not no_adjacent_links,
                                    [], [p.name for p in matrix], 1, pangenome_length)
     connections, dividers = dividers_with_max_size(matrix, cells_per_file)
     LOGGER.info(f"Created dividers")
@@ -186,11 +187,11 @@ def add_adjacent_connector_column(component, next_component, schematic):
         isin = np.isin(filtered_rows, ids, invert=True)
         adjacents = filtered_rows[isin]
 
-    if adjacents.size > 0:  # no need to add a link with an empty list of participants
-        component.departures.append(LinkColumn(  # LinkColumn for adjacents
-            component.last_bin,
-            component.last_bin + 1,
-            participants=np.asarray(adjacents).astype(dtype='int32')))
+    # if adjacents.size > 0:  # add linkcolumn as placeholder even when an empty list of participants
+    component.departures.append(LinkColumn(  # LinkColumn for adjacents
+        component.last_bin,
+        component.last_bin + 1,
+        participants=np.asarray(adjacents).astype(dtype='int32')))
 
 
 def find_dividers(matrix: List[Path]) -> Tuple[dict, List[int]]:
@@ -278,14 +279,14 @@ class SmartFormatter(argparse.HelpFormatter):
         return argparse.HelpFormatter._split_lines(self, text, width)
 
 
-def write_files(folder, odgi_fasta: Path, schematic: PangenomeSchematic):
+def write_files(folder, odgi_fasta: Path, schematic: PangenomeSchematic, no_adjacent_links):
     os.makedirs(folder, exist_ok=True)  # make directory for all files
 
     fasta = None
     if odgi_fasta:
         fasta = read_contigs(odgi_fasta)[0]
 
-    bin2file_mapping = schematic.split_and_write(args.cells_per_file, folder, fasta)
+    bin2file_mapping = schematic.split_and_write(args.cells_per_file, folder, fasta, no_adjacent_links)
 
     schematic.write_index_file(folder, bin2file_mapping)
 
@@ -384,12 +385,13 @@ def main():
     for json_file in files:
         LOGGER.info(f'reading {osPath(json_file)}...\n')
         paths, pangenome_length, bin_width = JSONparser.parse(json_file, chunk_size*2, parallel)  # give 2x jobs to do
-        schematic = segment_matrix(paths, bin_width, args.cells_per_file, pangenome_length, args.no_adjacent_links, parallel)
+        schematic = segment_matrix(paths, bin_width, args.cells_per_file,
+                                   pangenome_length, args.no_adjacent_links, parallel)
 
         # this one spits out json and optionally other output files (fasta, ttl)
         path_name = str(bin_width)
         folder_path = osPath(args.output_folder).joinpath(path_name)  # full path
-        write_files(folder_path, args.fasta, schematic)
+        write_files(folder_path, args.fasta, schematic, args.no_adjacent_links)
 
         LOGGER.info("Finished processing the file " + json_file)
 

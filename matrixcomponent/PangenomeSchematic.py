@@ -21,6 +21,7 @@ class PangenomeSchematic:
     bin_width: int
     first_bin: int
     last_bin: int
+    includes_connectors: bool
     components: List[Component]
     path_names: List[str]
     total_nr_files: int
@@ -53,8 +54,11 @@ class PangenomeSchematic:
         # whitespace and [] takes up the majority of the file size
         return json.dumps(self, default=dumper, indent=None, separators=(',', ':\n'))
 
-    def n_links(self):
-        return sum([len(x.arrivals) + (len(x.departures) - 1) for x in self.components])
+    def n_links(self, no_adjacent_links):
+        columns = sum([len(x.arrivals) + len(x.departures) for x in self.components])
+        if not no_adjacent_links:
+            columns -= len(self.components)  # -1 for each component
+        return columns
     # (len(self.departures)-1) because last departure is adjacent connectors
 
     def n_components(self):
@@ -64,7 +68,7 @@ class PangenomeSchematic:
         self.first_bin = 1  # these have not been properly initialized
         self.last_bin = self.components[-1].last_bin
 
-    def split_and_write(self, cells_per_file, folder, fasta : Contig):
+    def split_and_write(self, cells_per_file, folder, fasta : Contig, no_adjacent_links):
         # todo: get rid of this once the JS side can work with sparse containers
         if self.json_version <= 14:
             empty = []
@@ -102,7 +106,8 @@ class PangenomeSchematic:
             these_comp = self.components[cut:end_cut]
             if these_comp:  # when we're out of data because the last component is 1 wide
                 schematic = PangenomeSchematic(JSON_VERSION, self.bin_width, these_comp[0].first_bin,
-                                               these_comp[-1].last_bin, these_comp, self.path_names,
+                                               these_comp[-1].last_bin, self.includes_connectors,
+                                               these_comp, self.path_names,
                                                self.total_nr_files, self.pangenome_length)
                 schematic.filename = self.filename(i)  # save for consistency IMPORTANT
 
@@ -112,7 +117,7 @@ class PangenomeSchematic:
                                  # used to calculate amount of padding for x values
                                  "component_count": schematic.n_components(),
                                  # extra columns beyond last_bin - first_bin
-                                 "link_count": schematic.n_links()}
+                                 "link_count": schematic.n_links(no_adjacent_links)}
                 if schematic.bin_width == 1:
                     chunk_summary["fasta"] = self.fasta_filename(i)
                 bin2file_mapping.append(chunk_summary)
@@ -174,6 +179,7 @@ class PangenomeSchematic:
         master_index_file = folder.parent.joinpath(f'bin2file.json')
         master_contents = {'json_version': JSON_VERSION,
                            'pangenome_length': self.pangenome_length,
+                           'includes_connectors': self.includes_connectors,
                            'zoom_levels': OrderedDict(sorted(self.file_dict.items(), reverse=True))}
         with master_index_file.open('w') as f:
             f.write(json.dumps(master_contents, indent=4))
@@ -185,6 +191,6 @@ class PangenomeSchematic:
         for component in self.components:
             component.x = x
             # component.first_bin=0 does not take up rendering space, the next component is 0
-            x = component.next_x_coord() if component.first_bin else 0
+            x = component.next_x_coord(self.includes_connectors) if component.first_bin else 0
         self.update_first_last_bin()
 

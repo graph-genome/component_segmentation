@@ -43,11 +43,11 @@ class Component:
         # careful construction can reuse Bin.sequence memory pointer"""
     first_bin: int
     last_bin: int
+    x = 0
     occupants: set  # pure ids
     matrix: List
     arrivals: List[LinkColumn]
     departures: List[LinkColumn]
-    x = 0
 
     def __init__(self, first_bin: int, last_bin: int):
         self.first_bin = first_bin
@@ -57,9 +57,14 @@ class Component:
         self.arrivals = []  # reverse ordered Links
         self.departures = []  # ordered Links
 
-    def width(self):
-        return len(self.arrivals) + (len(self.departures) - 1) + self.last_bin - self.first_bin
+    def width(self, includes_connectors):
+        depart_n = len(self.departures)
+        if includes_connectors:
+            depart_n -= 1
+        matrix_width = (self.last_bin - self.first_bin + 1)
+        return len(self.arrivals) + depart_n + matrix_width
     # (len(self.departures)-1) because last departure is adjacent connectors
 
-    def next_x_coord(self):
-        return self.x + self.width() + 1 # 1 column of padding
+    def next_x_coord(self, includes_connectors):
+        # 1 column of padding
+        return self.x + self.width(includes_connectors) + (1 if includes_connectors else 0)
