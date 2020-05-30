@@ -6,6 +6,7 @@ from matrixcomponent.utils import (
     path_dividers,
     self_loops,
     sort_and_drop_duplicates,
+    compress_array
 )
 
 
@@ -49,14 +50,12 @@ def test_find_groups():
         [3, 3], [3, 3], [3, 4], [3, 4], [3, 5]
     ])
     assert np.array_equal(find_groups(data[:,0], data[:,1]),
-                          [(0, 2), (2, 3),
-                           (3, 6), (6, 7),
-                           (7, 9), (9, 11), (11, 12)])
+                          [0, 2, 3, 6, 7, 9, 11, 12])
 
     assert np.array_equal(find_groups(np.array([]), np.array([])), [])
 
     data = np.array([[1, 2]])
-    assert np.array_equal(find_groups(data[:, 0], data[:, 1]), [(0, 1)])
+    assert np.array_equal(find_groups(data[:, 0], data[:, 1]), [0, 1])
 
 
 def test_sort_and_drop_duplicates():
@@ -72,6 +71,7 @@ def test_sort_and_drop_duplicates():
         "path_index": np.array([3, 0, 3, 2, 1, 2, 3, 1, 2], dtype='int32'),
     })  # only one duplicate (2, 3, 2)
 
-    res = sort_and_drop_duplicates([np.stack((df['from'], df['to'], df['path_index']))])
+    compressed = compress_array(np.stack((df['from'], df['to'], df['path_index'])))
+    res = sort_and_drop_duplicates([compressed])
     shared_items = {k: res[k] for k in res if k in expected and np.array_equal(res[k], expected[k])}
     assert len(shared_items) == len(expected) # all three components should be equal
