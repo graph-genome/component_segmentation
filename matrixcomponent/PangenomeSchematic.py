@@ -128,7 +128,10 @@ class PangenomeSchematic:
 
                 if fasta is not None and schematic.bin_width == 1:
                     x = schematic.bin_width
-                    fa_first, fa_last = (schematic.first_bin * x), ((schematic.last_bin + 1) * x)
+                    if schematic.first_bin == 0:
+                        schematic.first_bin = 1  # don't include bin 0 special
+                    fa_first = (schematic.first_bin-1) * x  # 1 indexed
+                    fa_last = schematic.last_bin * x # inclusive end
                     header = f"first_bin: {schematic.first_bin} " + f"last_bin: {schematic.last_bin}"
                     chunk = [Contig(header, fasta.seq[fa_first:fa_last])]
                     c = folder.joinpath(schematic.fasta_filename(i))
