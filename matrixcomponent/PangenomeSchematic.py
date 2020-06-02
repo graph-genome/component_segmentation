@@ -188,9 +188,12 @@ class PangenomeSchematic:
     def prerender(self):
         """Calculates X coordinates and summary statistics for all Components"""
         x = 0
+        compressedX = 0
         for component in self.components:
             component.x = x
+            component.compressedX = compressedX
             # component.first_bin=0 does not take up rendering space, the next component is 0
             x = component.next_x_coord(self.includes_connectors) if component.first_bin else 0
+            compressedX = component.next_compressedX(self.includes_connectors) if component.first_bin else 0
         self.update_first_last_bin()
 
