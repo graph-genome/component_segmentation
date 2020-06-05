@@ -44,6 +44,7 @@ class Component:
     first_bin: int
     last_bin: int
     x = 0
+    compressedX = 0
     occupants: set  # pure ids
     matrix: List
     arrivals: List[LinkColumn]
@@ -52,19 +53,28 @@ class Component:
     def __init__(self, first_bin: int, last_bin: int):
         self.first_bin = first_bin
         self.last_bin = last_bin
+        if first_bin == 0:
+            # don't confuse the special case bin 0 with regular content
+            assert last_bin == 0
         self.occupants = set()
         self.matrix = []
         self.arrivals = []  # reverse ordered Links
         self.departures = []  # ordered Links
 
-    def width(self, includes_connectors):
+    def width(self, includes_connectors, compressed=False):
         depart_n = len(self.departures)
         if includes_connectors:
             depart_n -= 1
         matrix_width = (self.last_bin - self.first_bin + 1)
+        if compressed:
+            matrix_width = 3  # binScalingFactor
         return len(self.arrivals) + depart_n + matrix_width
     # (len(self.departures)-1) because last departure is adjacent connectors
 
     def next_x_coord(self, includes_connectors):
         # 1 column of padding
         return self.x + self.width(includes_connectors) + (1 if includes_connectors else 0)
+
+    def next_compressedX(self, includes_connectors):
+        # 1 column of padding
+        return self.compressedX + self.width(includes_connectors, compressed=True) + (1 if includes_connectors else 0)
