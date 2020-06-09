@@ -115,9 +115,8 @@ class PangenomeSchematic:
                                  "first_bin": schematic.first_bin,
                                  "last_bin": schematic.last_bin,
                                  # used to calculate amount of padding for x values
-                                 "component_count": schematic.n_components(),
-                                 # extra columns beyond last_bin - first_bin
-                                 "link_count": schematic.n_links(no_adjacent_links)}
+                                 "x": these_comp[0].x,
+                                 "compressedX": these_comp[0].compressedX}
                 if schematic.bin_width == 1:
                     chunk_summary["fasta"] = self.fasta_filename(i)
                 bin2file_mapping.append(chunk_summary)
