@@ -1,4 +1,4 @@
-JSON_VERSION = 14  # This version adds prerender x coordinates for all components
+JSON_VERSION = 16  # This version adds prerender compressedX coordinates for all components
 ODGI_VERSION = 12
 
 import logging

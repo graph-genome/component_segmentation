@@ -4,7 +4,7 @@ import logging
 from joblib import delayed
 
 import matrixcomponent.matrix as matrix
-from matrixcomponent import ODGI_VERSION
+from matrixcomponent import ODGI_VERSION, utils
 
 import numpy as np
 
@@ -37,10 +37,37 @@ def process_path(line=None):
             if type(ranges) is not list and len(b) >= 6:
                 ranges = [[b[4], b[5]]]
 
-            bin = matrix.Bin(b[0], b[1], b[2], ranges, 0) # path_id = 0
+            compressed_ranges = []
+            for r in ranges:
+                compressed_ranges.extend(r)
+
+            bin = matrix.Bin(b[0], b[1], b[2], compressed_ranges, 0)
             p.bins.setdefault(bin.bin_id, bin)
 
-        p.links = np.asarray(path['links'], dtype='int32')
+        # do the major part of the segmentation.find_dividers() method
+        links = np.asarray(path['links'], dtype='int32')
+        p.num_links = len(links)
+
+        p.path_dividers = np.array([], dtype='int32')
+        p.self_loops = np.array([], dtype='int32')
+
+        p.max_bin_id = 1
+        bin_ids = np.asarray(p.bins.keys()) # already sorted
+        if bin_ids.size > 0:
+            p.max_bin_id = int(bin_ids[-1])
+
+        if links.size > 0:
+            # we don't want these to become dividers
+            boundary_mask = utils.path_boundaries(links)
+            self_loops_mask = utils.self_loops(links)
+
+            if np.any(self_loops_mask):
+                p.self_loops = links[self_loops_mask]
+
+            links = links[~(boundary_mask | self_loops_mask)]
+
+            path_dividers_mask = utils.path_dividers(links, bin_ids)
+            p.path_dividers = links[path_dividers_mask]
 
     return [pangenome_length, bin_width, p]
 
