@@ -44,7 +44,7 @@ class Position:
         if (self.is_forward):
             graph.add((position, RDF.type, faldo.ForwardStrandPosition))
         else:
-            graph.add((position, RDF.type, faldo.BackwardStrandPosition))
+            graph.add((position, RDF.type, faldo.ReverseStrandPosition))
 
         # add its properties, recursively if needed
         graph.add((position, faldo.position, Literal(self.id)))
