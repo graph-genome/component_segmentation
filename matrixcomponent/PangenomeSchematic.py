@@ -166,7 +166,7 @@ class PangenomeSchematic:
                         # bins
                         for bins in component.matrix:
                             prev_bin_id = -1
-                            for bin in bins:
+                            for bin in bins[1][1]:  # follow the compressed format
                                 if bin:
                                     cur_bin_id = bin.bin_id
                                     obin = ontology.Bin()
@@ -192,14 +192,19 @@ class PangenomeSchematic:
 
                                     # todo: are begin,end the real bin_ids or the compressed ones? a sparse list sense
                                     cell_ns = URIRef(ocell.path_id + "/")
-                                    for [begin, end] in bin.nucleotide_ranges:
+                                    for i in range(0, len(bin.nucleotide_ranges), 2):
+                                        begin, end = bin.nucleotide_ranges[i], bin.nucleotide_ranges[i+1]
+                                        real_begin = begin if begin else end
+                                        real_end = end if end else begin
+
                                         oregion = ontology.Region()
-                                        oregion.begin = begin
-                                        oregion.end = end
+                                        oregion.begin = real_begin
+                                        oregion.end = real_end
                                         ocell.cell_region.append(oregion)
 
-                                        oposition_begin = ontology.Position(begin, cell_ns)
-                                        oposition_end = ontology.Position(end, cell_ns)
+                                        path = self.path_names[bin.path_id]
+                                        oposition_begin = ontology.Position(real_begin, begin <= end, path, cell_ns)
+                                        oposition_end = ontology.Position(real_end, begin <= end, path, cell_ns)
                                         oposition_dict[oposition_begin.ns_term()] = oposition_begin
                                         oposition_dict[oposition_end.ns_term()] = oposition_end
 
@@ -246,9 +251,12 @@ class PangenomeSchematic:
                     g.bind('vg', vg)
                     g.bind('faldo', faldo)
 
-                    zoom_level.add_to_graph(g, vg, faldo)  # here the magic happens
+                    # here the magic happens
+                    zoom_level.add_to_graph(g, vg, faldo)
                     for oposition in oposition_dict.values():
                         oposition.add_to_graph(g, vg, faldo)
+                    for path in self.path_names:
+                        ontology.Path(path).add_to_graph(g, vg, faldo)
 
                     p = ontology_folder.joinpath(schematic.ttl_filename(i))
                     g.serialize(destination=str(p), format='turtle', encoding='utf-8')

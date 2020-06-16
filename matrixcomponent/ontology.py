@@ -2,12 +2,32 @@ from typing import List
 from rdflib import Namespace, Graph, Literal, URIRef, RDF
 
 
+class Path:
+    path: str
+
+    def __init__(self, path):
+        self.path = path
+
+    def ns_term(self):
+        return self.path # path1
+
+    def add_to_graph(self, graph: Graph, vg: Namespace, faldo: Namespace) -> None:
+        path = URIRef(self.ns_term())  # str representation
+
+        # add the object itself
+        graph.add((path, RDF.type, vg.Path))
+
+
 class Position:
     id: int
+    is_forward: bool
+    path: str
     ns: URIRef
 
-    def __init__(self, id, ns):
+    def __init__(self, id, is_forward, path, ns):
         self.id = id
+        self.is_forward = is_forward
+        self.path = path
         self.ns = ns
 
     def __str__(self):
@@ -21,9 +41,14 @@ class Position:
 
         # add the object itself
         graph.add((position, RDF.type, faldo.ExactPosition))
+        if (self.is_forward):
+            graph.add((position, RDF.type, faldo.ForwardStrandPosition))
+        else:
+            graph.add((position, RDF.type, faldo.BackwardStrandPosition))
 
         # add its properties, recursively if needed
         graph.add((position, faldo.position, Literal(self.id)))
+        graph.add((position, faldo.reference, URIRef(self.path)))
 
 
 class Region:
@@ -44,8 +69,10 @@ class Region:
         graph.add((region, RDF.type, faldo.Region))
 
         # add its properties, recursively if needed
-        graph.add((region, faldo.begin, self.ns + str(self.begin)))
-        graph.add((region, faldo.end, self.ns + str(self.end)))
+        real_begin = self.begin if self.begin else self.end
+        real_end   = self.end if self.end else self.begin
+        graph.add((region, faldo.begin, self.ns + str(real_begin)))
+        graph.add((region, faldo.end, self.ns + str(real_end)))
 
 
 class Cell:
