@@ -203,8 +203,8 @@ class PangenomeSchematic:
                                         ocell.cell_region.append(oregion)
 
                                         path = self.path_names[bin.path_id]
-                                        oposition_begin = ontology.Position(real_begin, begin <= end | end == 0, path, cell_ns)
-                                        oposition_end = ontology.Position(real_end, begin <= end | end == 0, path, cell_ns)
+                                        oposition_begin = ontology.Position(real_begin, begin >= end, path, cell_ns)
+                                        oposition_end = ontology.Position(real_end, begin >= end, path, cell_ns)
                                         oposition_dict[oposition_begin.ns_term()] = oposition_begin
                                         oposition_dict[oposition_end.ns_term()] = oposition_end
 
