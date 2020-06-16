@@ -284,6 +284,8 @@ class SmartFormatter(argparse.HelpFormatter):
 
 def write_files(folder, ontology_folder, odgi_fasta: Path, schematic: PangenomeSchematic, no_adjacent_links):
     os.makedirs(folder, exist_ok=True)  # make directory for all files
+    if ontology_folder:
+        os.makedirs(ontology_folder, exist_ok=True)
 
     fasta = None
     if odgi_fasta:
