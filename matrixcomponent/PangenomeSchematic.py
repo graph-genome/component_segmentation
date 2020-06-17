@@ -149,6 +149,10 @@ class PangenomeSchematic:
                     ocomp_dict = {}
                     obin_dict = {}
                     oposition_dict = {}
+
+                    min_bin_id = schematic.first_bin
+                    max_bin_id = schematic.last_bin
+
                     for ic, component in enumerate(schematic.components):
                         ocomp = ontology.Component(ic+1)
                         ocomp.ns = zoom_level.ns_term() + '/'
@@ -165,7 +169,6 @@ class PangenomeSchematic:
 
                         # bins
                         for bins in component.matrix:
-                            prev_bin_id = -1
                             for bin in bins[1][1]:  # follow the compressed format
                                 if bin:
                                     cur_bin_id = bin.bin_id
@@ -174,13 +177,17 @@ class PangenomeSchematic:
                                     obin.bin_rank = cur_bin_id
                                     obin_dict[cur_bin_id] = obin
 
-                                    # save the sequence 1-2-3-..-n as a bi-directed list
-                                    if prev_bin_id in obin_dict:
-                                        prev_bin = obin_dict[prev_bin_id]
-                                        prev_bin.forward_bin_edge = obin.ns_term()
+                                    if (cur_bin_id > min_bin_id):
+                                        prev_bin = ontology.Bin()
+                                        prev_bin.ns = ocomp.ns_term() + '/'
+                                        prev_bin.bin_rank = cur_bin_id - 1
                                         obin.reverse_bin_edge = prev_bin.ns_term()
+                                    if (cur_bin_id < max_bin_id):
+                                        next_bin = ontology.Bin()
+                                        next_bin.ns = ocomp.ns_term() + '/'
+                                        next_bin.bin_rank = cur_bin_id + 1
+                                        obin.forward_bin_edge = next_bin.ns_term()
 
-                                    prev_bin_id = cur_bin_id
                                     ocomp.bins.append(obin)
 
                                     cell_counter = cell_counter + 1
