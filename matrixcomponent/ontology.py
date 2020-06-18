@@ -1,5 +1,5 @@
 from typing import List
-from rdflib import Namespace, Graph, Literal, URIRef, RDF
+from rdflib import Namespace, Graph, Literal, URIRef, RDF, XSD
 
 
 class Path:
@@ -100,8 +100,8 @@ class Cell:
         graph.add((cell, RDF.type, vg.Cell))
 
         # add its properties, recursively if needed
-        graph.add((cell, vg.positionPercent, Literal(self.position_percent)))
-        graph.add((cell, vg.inversionPercent, Literal(self.inversion_percent)))
+        graph.add((cell, vg.positionPercent, Literal(self.position_percent, datatype=XSD.double)))
+        graph.add((cell, vg.inversionPercent, Literal(self.inversion_percent, datatype=XSD.double)))
         for region in self.cell_region:
             region.ns = inner_ns
             graph.add((cell, vg.cellRegions, region.ns_term()))  # can have multiple regions
