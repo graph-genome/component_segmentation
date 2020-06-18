@@ -167,26 +167,26 @@ class PangenomeSchematic:
                         ocomp_dict[ic] = ocomp
                         prev_comp_id = ic
 
+                        obin_ns = ocomp.ns_term() + '/'
+                        obin_tmp = ontology.Bin()
+                        obin_tmp.ns = obin_ns
+
                         # bins
                         for bins in component.matrix:
                             for bin in bins[1][1]:  # follow the compressed format
                                 if bin:
                                     cur_bin_id = bin.bin_id
                                     obin = ontology.Bin()
-                                    obin.ns = ocomp.ns_term() + '/'
+                                    obin.ns = obin_ns
                                     obin.bin_rank = cur_bin_id
                                     obin_dict[cur_bin_id] = obin
 
                                     if (cur_bin_id > min_bin_id):
-                                        prev_bin = ontology.Bin()
-                                        prev_bin.ns = ocomp.ns_term() + '/'
-                                        prev_bin.bin_rank = cur_bin_id - 1
-                                        obin.reverse_bin_edge = prev_bin.ns_term()
+                                        obin_tmp.bin_rank = cur_bin_id - 1
+                                        obin.reverse_bin_edge = obin_tmp.ns_term()  # string value
                                     if (cur_bin_id < max_bin_id):
-                                        next_bin = ontology.Bin()
-                                        next_bin.ns = ocomp.ns_term() + '/'
-                                        next_bin.bin_rank = cur_bin_id + 1
-                                        obin.forward_bin_edge = next_bin.ns_term()
+                                        obin_tmp.bin_rank = cur_bin_id + 1
+                                        obin.forward_bin_edge = obin_tmp.ns_term()  # string value
 
                                     ocomp.bins.append(obin)
 
