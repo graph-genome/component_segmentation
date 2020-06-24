@@ -142,7 +142,7 @@ class PangenomeSchematic:
                 if ontology_folder:
                     zoom_level = ontology.ZoomLevel()
                     zoom_level.zoom_factor = schematic.bin_width
-                    zoom_level.ns = URIRef('pg/')
+                    zoom_level.ns = URIRef('http://example.org/pg/')
 
                     prev_comp_id = -1
                     cell_counter = 0
