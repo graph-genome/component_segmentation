@@ -1,0 +1,24 @@
+PREFIX vg: <http://biohackathon.org/resource/vg#>
+PREFIX faldo: <http://biohackathon.org/resource/faldo#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+
+SELECT ?cell ?cellregion ?inversionpercent ?positionpercent ?beginpos ?endpos ?path
+WHERE {
+        ?zoomlevel a vg:ZoomLevel;
+                vg:components ?components;
+                vg:zoomFactor ?zoomfactor .
+        FILTER(?zoomfactor = 1)
+        ?components vg:bins ?bin .
+        ?bin vg:cells ?cell;
+                vg:binRank ?binrank .
+        FILTER(?binrank < 6 && ?binrank > 0)
+        ?cell vg:cellRegions ?faldoregion;
+                vg:inversionPercent ?inversionpercent;
+                vg:positionPercent ?positionpercent .
+        ?faldoregion faldo:begin ?begin;
+                faldo:end ?end .
+        ?begin faldo:position ?beginpos .
+        ?end faldo:position ?endpos .
+        ?begin faldo:reference ?reference .
+        # THIS DOES NOT WORK BUT I DON'T KNOW WHY ?reference rdfs:label ?path .
+}

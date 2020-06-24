@@ -1,0 +1,9 @@
+PREFIX vg:<http://biohackathon.org/resource/vg#>
+PREFIX rdf:<http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+SELECT (SUBSTR(group_concat(?sequence; separator=''), 1,5) as ?panSeq)
+{SELECT
+  * #(SUBSTR(group_concat(?sequence; separator=''), 1,5) as ?panSeq)
+WHERE {?s a vg:Node;
+                rdf:value ?sequence .
+       }
+ORDER BY ?s
