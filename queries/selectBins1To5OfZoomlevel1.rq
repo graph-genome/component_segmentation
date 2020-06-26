@@ -20,5 +20,4 @@ WHERE {
         ?begin faldo:position ?beginpos .
         ?end faldo:position ?endpos .
         ?begin faldo:reference ?reference .
-        # THIS DOES NOT WORK BUT I DON'T KNOW WHY ?reference rdfs:label ?path .
 }

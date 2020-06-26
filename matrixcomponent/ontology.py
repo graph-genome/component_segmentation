@@ -9,7 +9,7 @@ class Path:
         self.path = path
 
     def ns_term(self):
-        return self.path # path1
+        return "path/" + self.path # path1
 
     def add_to_graph(self, graph: Graph, vg: Namespace, faldo: Namespace) -> None:
         path = URIRef(self.ns_term())  # str representation
@@ -156,6 +156,7 @@ class Link:
     paths: List[str]
     forward_link_edge: int
     reverse_link_edge: int
+    linkZoomLevel: str
 
     def __init__(self):
         self.paths = []
@@ -163,6 +164,7 @@ class Link:
         self.reverse_link_edge = -1
         self.arrival = ''
         self.departure = ''
+        self.linkZoomLevel = ''
 
     def __str__(self):
         return "link" + str(self.id)  # bin1
@@ -182,6 +184,8 @@ class Link:
         # add its properties, recursively if needed
         graph.add((link, vg.linkRank, Literal(self.id)))
 
+        if self.linkZoomLevel:
+            graph.add((link, vg.linkZoomLevel, URIRef(self.linkZoomLevel)))
         if self.arrival:
             graph.add((link, vg.arrival, URIRef(self.arrival)))
 

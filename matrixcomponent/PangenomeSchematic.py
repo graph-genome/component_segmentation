@@ -142,7 +142,7 @@ class PangenomeSchematic:
                 if ontology_folder:
                     zoom_level = ontology.ZoomLevel()
                     zoom_level.zoom_factor = schematic.bin_width
-                    zoom_level.ns = URIRef('http://example.org/pg/')
+                    zoom_level.ns = URIRef('http://example.org/vg/')
 
                     prev_comp_id = -1
                     cell_counter = 0
@@ -250,6 +250,7 @@ class PangenomeSchematic:
                                     olink.arrival = to_bin.ns_term()
 
                                 olink.paths = [self.path_names[k] for k in link.participants]
+                                olink.linkZoomLevel = zoom_level.ns_term()
                                 zoom_level.links.append(olink)
 
                     g = Graph()

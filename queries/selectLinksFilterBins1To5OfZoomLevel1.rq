@@ -2,14 +2,17 @@ PREFIX vg: <http://biohackathon.org/resource/vg#>
 PREFIX faldo: <http://biohackathon.org/resource/faldo#>
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 
-SELECT *
+SELECT ?link ?path ?arrivalbinrank ?departurebinrank ?zoomfactor
 WHERE {
         ?link a vg:Link;
                 vg:arrival ?arrivalbin;
                 vg:departure ?departurebin;
-                vg:linkPaths ?path .
-        # THIS DOES NOT WORK AND I DON'T KNOW WHY ?path rdfs:label ?l .
+                vg:linkPaths ?path ;
+                vg:linkZoomLevel ?zoomlevel .
         ?arrivalbin vg:binRank ?arrivalbinrank .
         ?departurebin vg:binRank ?departurebinrank .
-        FILTER((?arrivalbinrank < 6 && ?arrivalbinrank > 0) || (?departurebinrank < 6 && ?departurebinrank > 0))
+        FILTER((?arrivalbinrank < 6 && ?arrivalbinrank > 0)
+                || (?departurebinrank < 6 && ?departurebinrank > 0))
+        ?zoomlevel vg:zoomFactor ?zoomfactor .
+        FILTER(?zoomfactor = 1)
 }
