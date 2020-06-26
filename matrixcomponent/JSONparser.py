@@ -41,7 +41,7 @@ def process_path(line=None):
             for r in ranges:
                 compressed_ranges.extend(r)
 
-            bin = matrix.Bin(b[0], b[1], b[2], compressed_ranges, 0)
+            bin = matrix.Bin(b[0], b[1], b[2], compressed_ranges, 0, b[3])
             p.bins.setdefault(bin.bin_id, bin)
 
         # do the major part of the segmentation.find_dividers() method

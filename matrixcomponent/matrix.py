@@ -13,6 +13,7 @@ class Bin(recordclass.dataobject):
     inversion: float
     nucleotide_ranges: 'numpy.array' # List[List[int]] is encoded as a Numpy flat array - this saves memory
     path_id: int
+    position: float
 
 ## Path is all for input files
 

@@ -195,7 +195,7 @@ class PangenomeSchematic:
                                     ocell.id = cell_counter
                                     ocell.path_id = self.path_names[bin.path_id]  # saved in the populate_component_matrix
                                     ocell.inversion_percent = bin.inversion
-                                    ocell.position_percent = bin.coverage
+                                    ocell.position_percent = bin.position
 
                                     # todo: are begin,end the real bin_ids or the compressed ones? a sparse list sense
                                     cell_ns = URIRef(ocell.path_id + "/")
