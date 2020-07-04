@@ -9,7 +9,7 @@ class Path:
         self.path = path
 
     def ns_term(self):
-        return "path/" + self.path # path1
+        return "path/{0}".format(self.path) # path1
 
     def add_to_graph(self, graph: Graph, vg: Namespace, faldo: Namespace) -> None:
         path = URIRef(self.ns_term())  # str representation
@@ -30,11 +30,8 @@ class Position:
         self.path = path
         self.ns = ns
 
-    def __str__(self):
-        return str(self.id)
-
     def ns_term(self):
-        return self.ns + str(self) # path1/2
+        return self.ns + "{0}".format(str(self.id))
 
     def add_to_graph(self, graph: Graph, vg, faldo: Namespace) -> None:
         position = self.ns_term()  # str representation
@@ -56,11 +53,8 @@ class Region:
     begin: int
     end: int
 
-    def __str__(self):
-        return str(self.begin) + "-" + str(self.end)  # 2-10
-
     def ns_term(self):
-        return self.ns + str(self) # path1/...
+        return self.ns + "{0}-{1}".format(str(self.begin), str(self.end))
 
     def add_to_graph(self, graph: Graph, vg, faldo: Namespace) -> None:
         region = self.ns_term()  # str representation
@@ -86,15 +80,12 @@ class Cell:
     def __init__(self):
         self.cell_region = []
 
-    def __str__(self):
-        return "cell" + self.path_id # cell1
-
     def ns_term(self):
-        return self.ns + str(self)
+        return self.ns + "cell{0}".format(str(self.path_id))
 
     def add_to_graph(self, graph: Graph, vg, faldo: Namespace) -> None:
         cell = self.ns_term()
-        inner_ns = URIRef(self.path_id + "/")
+        inner_ns = URIRef("{0}/".format(self.path_id))
 
         # add the object itself
         graph.add((cell, RDF.type, vg.Cell))
@@ -120,11 +111,8 @@ class Bin:
         self.forward_bin_edge = ''
         self.reverse_bin_edge = ''
 
-    def __str__(self):
-        return "bin" + str(self.bin_rank)  # bin1
-
     def ns_term(self):
-        return self.ns + str(self)
+        return self.ns + "bin{0}".format(str(self.bin_rank))
 
     def add_to_graph(self, graph: Graph, vg, faldo: Namespace) -> None:
         bin = self.ns_term()
@@ -166,17 +154,11 @@ class Link:
         self.departure = ''
         self.linkZoomLevel = ''
 
-    def __str__(self):
-        return "link" + str(self.id)  # bin1
-
-
     def ns_term(self):
-        return self.ns + str(self)
-
+        return self.ns + "link{0}".format(str(self.id))
 
     def add_to_graph(self, graph: Graph, vg, faldo: Namespace) -> None:
         link = self.ns_term()
-        inner_ns = link + "/"
 
         # add the object itself
         graph.add((link, RDF.type, vg.Link))
@@ -197,10 +179,10 @@ class Link:
 
         # add the reference to another object if needed
         if self.forward_link_edge > -1:
-            graph.add((link, vg.forwardLinkEdge, self.ns + "link" + str(self.forward_link_edge)))
+            graph.add((link, vg.forwardLinkEdge, "{0}link{1}".format(self.ns, str(self.forward_link_edge))))
 
         if self.reverse_link_edge > -1:
-            graph.add((link, vg.reverseLinkEdge, self.ns + "link" + str(self.reverse_link_edge)))
+            graph.add((link, vg.reverseLinkEdge, "{0}link{1}".format(self.ns, str(self.reverse_link_edge))))
 
 
 class Component:
@@ -217,11 +199,8 @@ class Component:
         self.forward_component_edge = ''
         self.reverse_component_edge = ''
 
-    def __str__(self):
-        return "component" + str(self.id) # component1
-
     def ns_term(self):
-        return self.ns + self.__str__()
+        return self.ns + "component{0}".format(str(self.id))
 
     def add_to_graph(self, graph: Graph, vg, faldo: Namespace) -> None:
         component = self.ns_term()
@@ -256,11 +235,8 @@ class ZoomLevel:
         self.components = []
         self.links = []
 
-    def __str__(self):
-        return "zoom" +  str(self.zoom_factor) #zoom1000
-
     def ns_term(self):
-        return self.ns + self.__str__()
+        return self.ns + "zoom{0}".format(str(self.zoom_factor))
 
     def add_to_graph(self, graph: Graph, vg, faldo: Namespace) -> None:
         zoomfactor = self.ns_term()

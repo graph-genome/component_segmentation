@@ -282,7 +282,7 @@ class SmartFormatter(argparse.HelpFormatter):
         return argparse.HelpFormatter._split_lines(self, text, width)
 
 
-def write_files(folder, ontology_folder, odgi_fasta: Path, schematic: PangenomeSchematic, no_adjacent_links):
+def write_files(folder, ontology_folder, odgi_fasta: Path, schematic: PangenomeSchematic, no_adjacent_links, parallel):
     os.makedirs(folder, exist_ok=True)  # make directory for all files
     if ontology_folder:
         os.makedirs(ontology_folder, exist_ok=True)
@@ -291,7 +291,8 @@ def write_files(folder, ontology_folder, odgi_fasta: Path, schematic: PangenomeS
     if odgi_fasta:
         fasta = read_contigs(odgi_fasta)[0]
 
-    bin2file_mapping = schematic.split_and_write(args.cells_per_file, folder, fasta, no_adjacent_links, ontology_folder)
+    bin2file_mapping = schematic.split_and_write(args.cells_per_file, folder, fasta, no_adjacent_links,
+                                                 ontology_folder, parallel)
 
     schematic.write_index_file(folder, bin2file_mapping)
 
@@ -405,9 +406,9 @@ def main():
 
         ontology_folder_path = None
         if args.do_ttl:
-            ontology_folder_path = osPath(args.output_folder).joinpath(path_name + '-turtle')
+            ontology_folder_path = osPath(args.output_folder).joinpath(path_name + '-rdf')
 
-        write_files(folder_path, ontology_folder_path, args.fasta, schematic, args.no_adjacent_links)
+        write_files(folder_path, ontology_folder_path, args.fasta, schematic, args.no_adjacent_links, parallel)
 
         LOGGER.info("Finished processing the file " + json_file)
 
