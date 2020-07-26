@@ -1,6 +1,6 @@
 import gzip
 import json
-import logger
+import logging
 import os
 import shutil
 
