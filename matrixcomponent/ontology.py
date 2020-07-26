@@ -81,11 +81,11 @@ class Cell:
         self.cell_region = []
 
     def ns_term(self):
-        return self.ns + "cell{0}".format(str(self.path_id))
+        return self.ns + "cell{0}/path/".format(str(self.path_id))
 
     def add_to_graph(self, graph: Graph, vg, faldo: Namespace) -> None:
         cell = self.ns_term()
-        inner_ns = URIRef("{0}/".format(self.path_id))
+        inner_ns = URIRef("{0}/path/".format(self.path_id))
 
         # add the object itself
         graph.add((cell, RDF.type, vg.Cell))
