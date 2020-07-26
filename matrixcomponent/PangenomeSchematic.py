@@ -271,11 +271,12 @@ class PangenomeSchematic:
                                      str(ontology_folder.joinpath(self.ttl_filename(i))) )
                                    for i, cut in enumerate(cut_points[:-1]) if self.components[cut:cut_points[i + 1]] )
 
-            if parallel:
-                results = parallel(delayed(write_rdf)(sch, path) for (sch, path) in prepared_schematics)
-            else:
-                for (sch, path) in prepared_schematics:
-                    write_rdf(sch, path)
+            #TODO() Now parallel is disabled because links overlap across partial pangenomic schematic occurs, though they cannot rescue because the communication across threads is not implemented yet.
+
+            #if parallel:
+            #    results = parallel(delayed(write_rdf)(sch, path) for (sch, path) in prepared_schematics)
+            #else:
+            write_rdf(self, str(ontology_folder.joinpath(self.ttl_filename(0))))
 
         return bin2file_mapping
 
