@@ -106,6 +106,7 @@ def write_rdf(schematic, ontology_output_path):
                     obin.cells.append(ocell)
 
     # links between components and their bins
+    LOGGER.info(f"Bin dictionary {obin_dict}")
 
     olink_dict = {}
     link_counter = 0
