@@ -124,15 +124,18 @@ def write_rdf(schematic, ontology_output_path):
             if len(link.participants):
                 link_counter = link_counter + 1
                 olink = olink_dict[link_counter]
-                assert link.upstream in obin_dict == link.downstream in obin_dict, "upstream: {0}, downstream {1}".format(link.upstream, link.downstream)
 
                 if link.upstream in obin_dict:
                     from_bin = obin_dict[link.upstream]
                     olink.departure = from_bin.ns_term()
+                else:
+                    LOGGER.info(f"No upstream {link.upstream}")
 
-                if lin_k.downstream in obin_dict:
-                    tobin = obin_dict[link.downstream]
+                if link.downstream in obin_dict:
+                    to_bin = obin_dict[link.downstream]
                     olink.arrival = to_bin.ns_term()
+                else:
+                    LOGGER.info(f"No downstream {link.downstream}")
 
                 olink.paths = [schematic.path_names[k] for k in link.participants]
                 olink.linkZoomLevel = zoom_level.ns_term()
