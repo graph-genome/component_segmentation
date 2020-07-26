@@ -168,6 +168,7 @@ class Link:
 
         if self.linkZoomLevel:
             graph.add((link, vg.linkZoomLevel, URIRef(self.linkZoomLevel)))
+        assert self.arrival and self.departure
         if self.arrival:
             graph.add((link, vg.arrival, URIRef(self.arrival)))
 
