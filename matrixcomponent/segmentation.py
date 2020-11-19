@@ -18,14 +18,13 @@ from joblib import Parallel
 from matrixcomponent.matrix import Path, Component, LinkColumn
 from matrixcomponent.PangenomeSchematic import PangenomeSchematic
 import matrixcomponent.utils as utils
+import matrixcomponent.JSONparser as JSONparser
 
 import os
 from glob import glob
 import logging
 import argparse
-import matrixcomponent
 
-import matrixcomponent.JSONparser as JSONparser
 
 import numpy as np
 
@@ -255,6 +254,7 @@ def find_dividers(matrix: List[Path]) -> Tuple[dict, List[int]]:
 
 def setup_logging():
     """Setup the logging, add a log file"""
+    from matrixcomponent import LOGGING_FORMAT_STR, LOGGING_DATE_FORMAT
     log_name = osPath(args.json_file).with_suffix('.log')
     if args.output_folder:
         log_name = osPath(args.output_folder).joinpath('log')
@@ -265,8 +265,8 @@ def setup_logging():
 
     handler = logging.FileHandler(os.path.join(log_name))
     handler.setLevel(args.log_level)
-    handler.setFormatter(logging.Formatter(matrixcomponent.LOGGING_FORMAT_STR,
-                                           datefmt=matrixcomponent.LOGGING_DATE_FORMAT))
+    handler.setFormatter(logging.Formatter(LOGGING_FORMAT_STR,
+                                           datefmt=LOGGING_DATE_FORMAT))
     logging.getLogger().addHandler(handler)
 
 
