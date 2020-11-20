@@ -19,6 +19,7 @@ setup(
         'recordclass>=0.13'
         'numpy>=1.9.3',
         'numba>=0.48',
+        'dataclass>=0.7'
         # 'rdflib>=4.2.2',
     ],
     url='https://graphgenome.org',
